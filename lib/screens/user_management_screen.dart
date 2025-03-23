@@ -137,6 +137,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         stream: _firestore.collection('users').snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
+            print(
+              'Erreur Firestore: ${snapshot.error}',
+            ); // Ajoutez cette ligne pour déboguer
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -146,6 +149,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   Text('Une erreur est survenue'),
                   SizedBox(height: 8),
                   Text('Impossible de charger les utilisateurs'),
+                  SizedBox(height: 8),
+                  Text(
+                    'Erreur: ${snapshot.error}',
+                  ), // Affiche l'erreur spécifique
                 ],
               ),
             );
