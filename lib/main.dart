@@ -7,6 +7,7 @@ import 'screens/settings_screen.dart';
 import 'screens/help_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/user_management_screen.dart';
+import 'screens/users_comments_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -131,8 +132,10 @@ class FireDetectorApp extends StatelessWidget {
                 const SettingsScreen(email: 'detecteurincendie7@gmail.com'),
         '/help':
             (context) =>
-                const HelpScreen(userEmail: 'detecteurincendie7@gmail.com'),
+                const HelpScreen(), // Modifier cette ligne pour enlever le paramètre userEmail
         '/user-management': (context) => const UserManagementScreen(),
+        '/users-comments':
+            (context) => const UsersCommentsScreen(), // Ajouter cette route
       },
     );
   }

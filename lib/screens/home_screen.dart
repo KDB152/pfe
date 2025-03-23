@@ -10,6 +10,7 @@ import '../services/sensor_service.dart';
 import '../screens/login_screen.dart';
 import '../widgets/admin_sidebar.dart';
 import '../screens/user_management_screen.dart';
+import '../screens/users_comments_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userEmail;
@@ -73,10 +74,12 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _checkAdminStatus() async {
     bool isAdmin = await _authService.isAdmin();
-    setState(() {
-      _isAdmin = isAdmin;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isAdmin = isAdmin;
+        _isLoading = false;
+      });
+    }
   }
 
   void _onItemTapped(int index) {
@@ -581,6 +584,19 @@ class _HomeScreenState extends State<HomeScreen>
               onTap: () {
                 Navigator.pop(context);
                 _sendHelpEmail();
+              },
+            ),
+          // Dans le drawer de HomeScreen, ajouter cet élément pour les administrateurs
+          // Après l'élément UserManagementScreen
+
+          // Vérifier si l'utilisateur est admin pour afficher l'option de gestion des commentaires
+          if (_isAdmin) // Assurez-vous d'avoir une variable isAdmin dans votre HomeScreen
+            ListTile(
+              leading: const Icon(Icons.comment),
+              title: const Text('Commentaires utilisateurs'),
+              onTap: () {
+                Navigator.pop(context); // Fermer le drawer
+                Navigator.pushNamed(context, '/users-comments');
               },
             ),
           const Divider(),

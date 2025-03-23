@@ -144,34 +144,86 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
         title: Text('Commentaires des Utilisateurs'),
         backgroundColor: Colors.deepOrange,
         actions: [
-          PopupMenuButton<String>(
-            icon: Icon(Icons.filter_list),
-            onSelected: (String value) {
-              setState(() {
-                _filterValue = value;
-              });
-            },
-            itemBuilder:
-                (BuildContext context) => <PopupMenuEntry<String>>[
-                  PopupMenuItem<String>(
-                    value: 'Tous',
-                    child: Text('Tous les commentaires'),
+          // Vos actions existantes
+        ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(color: Colors.deepOrange),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.white,
+                    radius: 30,
+                    child: Icon(
+                      Icons.account_circle,
+                      size: 50,
+                      color: Colors.deepOrange,
+                    ),
                   ),
-                  PopupMenuItem<String>(
-                    value: 'non_lu',
-                    child: Text('Non lus'),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'en_cours',
-                    child: Text('En cours'),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'résolu',
-                    child: Text('Résolus'),
+                  SizedBox(height: 10),
+                  Text(
+                    'Admin Panel',
+                    style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 ],
-          ),
-        ],
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.home),
+              title: Text('Accueil'),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/home');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.person_add),
+              title: Text('Gestion des utilisateurs'),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/user-management');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.comment),
+              title: Text('Commentaires utilisateurs'),
+              selected: true,
+              selectedTileColor: Colors.orange.withOpacity(0.1),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.settings),
+              title: Text('Paramètres'),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/settings');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.help),
+              title: Text('Aide & Support'),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/help');
+              },
+            ),
+            Divider(),
+            ListTile(
+              leading: Icon(Icons.logout),
+              title: Text('Déconnexion'),
+              onTap: () async {
+                await _authService.signOut();
+                if (mounted) {
+                  Navigator.pushReplacementNamed(context, '/');
+                }
+              },
+            ),
+          ],
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream:
