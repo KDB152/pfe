@@ -63,6 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           );
         }
       } catch (e) {
+        print('Detailed error: $e');
         setState(() {
           _errorMessage = 'Échec de l\'inscription !!';
           _isLoading = false;

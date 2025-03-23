@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../screens/user_management_screen.dart';
 import '../screens/users_comments_screen.dart';
 import '../services/user_service.dart';
+import '../screens/login_screen.dart';
 
 class AdminSidebar extends StatelessWidget {
   final String userEmail;
@@ -68,7 +69,10 @@ class AdminSidebar extends StatelessWidget {
                   context,
                   'Tableau de bord',
                   Icons.dashboard,
-                  () => Navigator.pushReplacementNamed(context, '/home'),
+                  () => Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  ),
                 ),
                 _buildMenuItem(
                   context,

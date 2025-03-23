@@ -98,6 +98,7 @@ class AuthService {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('pending_username', username);
       await prefs.setString('pending_email', email);
+      bool isAdminUser = email == 'detecteurincendie7@gmail.com';
       // Créer un document correspondant dans Firestore
       await FirebaseFirestore.instance
           .collection('users')
@@ -106,8 +107,8 @@ class AuthService {
             'email': email,
             'username': username,
             'isActive': true,
-            'isApproved': false, // À approuver par un admin
-            'isAdmin': false,
+            'isApproved': isAdminUser, // À approuver par un admin
+            'isAdmin': isAdminUser,
             'createdAt': FieldValue.serverTimestamp(),
             'lastLogin': FieldValue.serverTimestamp(),
           });
