@@ -1,8 +1,8 @@
-// lib/screens/user_management_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'package:intl/intl.dart';
+import '../screens/login_screen.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({Key? key}) : super(key: key);
@@ -55,7 +55,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  Future<void> _toggleUserActive(String userId, bool isActive) async {
+  Future<void> _toggleUserActive(
+    String userId,
+    bool isActive,
+    bool isAdmin,
+  ) async {
     await _firestore.collection('users').doc(userId).update({
       'isActive': !isActive,
     });
@@ -70,10 +74,20 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           ),
         ),
       );
+
+      // Si c'est un admin qui est désactivé, le rediriger vers la page de login
+      if (isAdmin && isActive) {
+        // Déconnexion et redirection vers l'écran de login
+        await _authService.signOut();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        );
+      }
     }
   }
 
-  // Nouvelle méthode pour vérifier si l'utilisateur est admin
+  // Méthode pour définir le statut admin d'un utilisateur
   Future<void> _setAdminStatus(String userId, bool makeAdmin) async {
     await _firestore.collection('users').doc(userId).update({
       'isAdmin': makeAdmin,
@@ -204,6 +218,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 var isActive = userData['isActive'] ?? true;
                 var isApproved = userData['isApproved'] ?? false;
                 var isAdmin = userData['isAdmin'] ?? false;
+                var email = userData['email'] ?? '';
+
+                // Vérification que l'utilisateur avec cet email apparaît dans la liste
+                // Décommenter cette ligne pour déboguer
+                // print('User email: $email, isActive: $isActive, isApproved: $isApproved, isAdmin: $isAdmin');
 
                 switch (_filterValue) {
                   case 'Actifs':
@@ -245,9 +264,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               var isAdmin = userData['isAdmin'] ?? false;
               var email = userData['email'] ?? 'No email';
               var username =
-                  userData['username'] ?? isAdmin
-                      ? 'Administrateur'
-                      : 'Utilisateur';
+                  userData['username'] ??
+                  (isAdmin ? 'Administrateur' : 'Utilisateur');
               var createdAt = userData['createdAt'] as Timestamp?;
               var lastLogin = userData['lastLogin'] as Timestamp?;
 
@@ -309,13 +327,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           onPressed: () => _approveUser(userId),
                           tooltip: 'Approuver',
                         ),
-                      if (!isCurrentUser)
+                      if (!isCurrentUser && isAdmin)
                         IconButton(
                           icon: Icon(
                             isActive ? Icons.block : Icons.check_circle,
                             color: isActive ? Colors.red : Colors.green,
                           ),
-                          onPressed: () => _toggleUserActive(userId, isActive),
+                          onPressed:
+                              () =>
+                                  _toggleUserActive(userId, isActive, isAdmin),
                           tooltip: isActive ? 'Désactiver' : 'Activer',
                         ),
                     ],
@@ -367,6 +387,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                       () => _setAdminStatus(userId, true),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.blue,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 12,
+                                    ),
+                                    minimumSize: Size(140, 45),
                                   ),
                                   child: Text('Promouvoir Admin'),
                                 ),
@@ -376,6 +401,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                       () => _setAdminStatus(userId, false),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.grey,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 12,
+                                    ),
+                                    minimumSize: Size(140, 45),
                                   ),
                                   child: Text('Révoquer Admin'),
                                 ),

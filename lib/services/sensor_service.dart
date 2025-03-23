@@ -206,7 +206,9 @@ class SensorService {
           description:
               'Température: ${_lastSensorData.temperature.toStringAsFixed(1)}°C',
           timestamp: now,
-          type: AlertType.smoke, // Utilisation du type existant le plus proche
+          type:
+              AlertType
+                  .temperature, // Utilisation du type existant le plus proche
         ),
       );
     }
@@ -220,7 +222,8 @@ class SensorService {
           description:
               'Niveau d\'humidité: ${_lastSensorData.humidity.toStringAsFixed(1)}%',
           timestamp: now,
-          type: AlertType.co2, // Utilisation du type existant le plus proche
+          type:
+              AlertType.humidity, // Utilisation du type existant le plus proche
         ),
       );
     }

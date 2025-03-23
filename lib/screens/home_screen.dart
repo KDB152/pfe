@@ -699,7 +699,7 @@ class _HomeScreenState extends State<HomeScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _isAdmin ? 'BONJOUR ADMIN' : 'Bienvenue, Utilisateur',
+                    _isAdmin ? 'Bienvenue, Admin' : 'Bienvenue, Utilisateur',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -863,6 +863,21 @@ class _HomeScreenState extends State<HomeScreen>
                               case AlertType.co2:
                                 icon = Icons.cloud;
                                 iconColor = Colors.orange;
+                                break;
+                              case AlertType.temperature: // Nouveau cas
+                                icon =
+                                    Icons
+                                        .thermostat; // Icône spécifique pour la température
+                                iconColor =
+                                    Colors
+                                        .red; // Couleur rouge pour indiquer la chaleur
+                                break;
+                              case AlertType.humidity: // Nouveau cas
+                                icon =
+                                    Icons
+                                        .water_drop; // Icône spécifique pour l'humidité
+                                iconColor =
+                                    Colors.blue; // Couleur bleue pour l'eau
                                 break;
                               case AlertType.test:
                                 icon = Icons.check_circle;

@@ -83,6 +83,8 @@ enum AlertType {
   smoke,
   co2,
   test,
+  humidity,
+  temperature,
   falseAlarm,
   systemFailure,
   info,
