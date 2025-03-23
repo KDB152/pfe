@@ -160,7 +160,7 @@ class HelpScreen extends StatelessWidget {
   Future<void> _sendEmail(BuildContext context) async {
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
-      path: 'mehdielabed86@gmail.com',
+      path: 'detecteurincendie7gmail.com',
       query: encodeQueryParameters({
         'subject': 'Aide - Application Fire Detector',
         'body':

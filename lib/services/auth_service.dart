@@ -20,7 +20,7 @@ class AuthService {
       return userData['isAdmin'] == true;
     }
 
-    if (user.email == 'mehdielabed86@gmail.com') {
+    if (user.email == 'detecteurincendie7@gmail.com') {
       // Vérifier si le document existe
       DocumentSnapshot docSnap =
           await _firestore.collection('users').doc(user.uid).get();
@@ -53,7 +53,7 @@ class AuthService {
           .createUserWithEmailAndPassword(email: email, password: password);
 
       // Vérifier si c'est l'email initial d'admin
-      bool isAdminUser = email == 'mehdielabed86@gmail.com';
+      bool isAdminUser = email == 'detecteurincendie7@gmail.com';
 
       // Ajouter les informations supplémentaires
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
@@ -131,7 +131,7 @@ class AuthService {
 
       if (!userDoc.exists) {
         // Vérifier si c'est l'email initial d'admin
-        bool isAdminUser = user.email == 'mehdielabed86@gmail.com';
+        bool isAdminUser = user.email == 'detecteurincendie7@gmail.com';
 
         await _firestore.collection('users').doc(user.uid).set({
           'username': username ?? user.displayName ?? 'User',

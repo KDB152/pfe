@@ -123,12 +123,15 @@ class FireDetectorApp extends StatelessWidget {
       routes: {
         '/': (context) => LoginScreen(),
         '/home':
-            (context) => const HomeScreen(userEmail: 'mehdielabed86@gmail.com'),
+            (context) =>
+                const HomeScreen(userEmail: 'detecteurincendie7@gmail.com'),
         '/notifications': (context) => const NotificationsScreen(),
         '/settings':
-            (context) => const SettingsScreen(email: 'mehdielabed86@gmail.com'),
+            (context) =>
+                const SettingsScreen(email: 'detecteurincendie7@gmail.com'),
         '/help':
-            (context) => const HelpScreen(userEmail: 'mehdielabed86@gmail.com'),
+            (context) =>
+                const HelpScreen(userEmail: 'detecteurincendie7@gmail.com'),
         '/user-management': (context) => const UserManagementScreen(),
       },
     );

@@ -650,7 +650,7 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _sendHelpEmail() async {
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
-      path: 'mehdielabed86@gmail.com',
+      path: 'detecteurincendie7@gmail.com',
       query: encodeQueryParameters({
         'subject': 'Aide - Application Fire Detector',
         'body':
