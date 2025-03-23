@@ -129,9 +129,6 @@ class FireDetectorApp extends StatelessWidget {
         '/settings':
             (context) =>
                 const SettingsScreen(email: 'detecteurincendie7@gmail.com'),
-        '/help':
-            (context) =>
-                const HelpScreen(userEmail: 'detecteurincendie7@gmail.com'),
         '/user-management': (context) => const UserManagementScreen(),
       },
     );

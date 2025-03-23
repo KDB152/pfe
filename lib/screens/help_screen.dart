@@ -1,16 +1,115 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/user_service.dart';
+import '../widgets/custom_button.dart';
+import '../widgets/custom_text_field.dart';
 
-class HelpScreen extends StatelessWidget {
-  final String userEmail;
+class HelpScreen extends StatefulWidget {
+  const HelpScreen({Key? key}) : super(key: key);
 
-  const HelpScreen({super.key, required this.userEmail});
+  @override
+  _HelpScreenState createState() => _HelpScreenState();
+}
+
+class _HelpScreenState extends State<HelpScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _subjectController = TextEditingController();
+  final _messageController = TextEditingController();
+  final UserService _userService = UserService();
+  bool _isLoading = false;
+  String _userName = '';
+  String _userEmail = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  @override
+  void dispose() {
+    _subjectController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+
+      if (userDoc.exists) {
+        setState(() {
+          _userName = userDoc.data()?['username'] ?? 'Utilisateur';
+          _userEmail = currentUser.email ?? '';
+        });
+      }
+    }
+  }
+
+  Future<void> _submitComment() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          await FirebaseFirestore.instance.collection('user_comments').add({
+            'userId': currentUser.uid,
+            'userName': _userName,
+            'userEmail': _userEmail,
+            'subject': _subjectController.text.trim(),
+            'message': _messageController.text.trim(),
+            'timestamp': FieldValue.serverTimestamp(),
+            'status': 'non_lu', // Status: non_lu, en_cours, résolu
+          });
+
+          // Réinitialiser le formulaire
+          _subjectController.clear();
+          _messageController.clear();
+
+          // Afficher un message de succès
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Votre commentaire a été envoyé avec succès'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        // En cas d'erreur
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur lors de l\'envoi du commentaire: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aide'),
+        title: const Text('Aide & Support'),
         backgroundColor: Colors.deepOrange,
       ),
       body: SingleChildScrollView(
@@ -18,123 +117,154 @@ class HelpScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildContactSection(context),
-            const SizedBox(height: 24),
-            _buildFAQSection(),
-            const SizedBox(height: 24),
-            _buildUserGuideSection(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContactSection(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Nous contacter',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.deepOrange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.email, color: Colors.deepOrange),
+            // Section FAQ
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              title: const Text('Envoyer un email'),
-              subtitle: const Text('Notre équipe vous répondra dans les 24h'),
-              onTap: () => _sendEmail(context),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Questions fréquentes',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFAQItem(
+                      'Comment fonctionne le système de détection d\'incendie?',
+                      'Notre système utilise des capteurs IoT avancés pour détecter la fumée, la chaleur et le CO2. En cas de danger, vous recevez une alerte immédiate sur votre téléphone.',
+                    ),
+                    _buildFAQItem(
+                      'Que faire si je reçois une alerte?',
+                      'Vérifiez d\'abord la situation si possible sans vous mettre en danger. Si un incendie est confirmé, évacuez immédiatement et appelez les pompiers au 18 ou 112.',
+                    ),
+                    _buildFAQItem(
+                      'Comment ajouter un nouveau capteur?',
+                      'Dans l\'écran principal, appuyez sur "Ajouter un capteur" et suivez les instructions pour connecter votre nouveau capteur au réseau WiFi.',
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildFAQSection() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Questions fréquemment posées',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _buildFAQItem(
-              'Comment fonctionne le détecteur de fumée?',
-              'Notre détecteur de fumée utilise une technologie photoélectrique avancée pour détecter les particules de fumée dans l\'air. Lorsque la fumée est détectée, l\'alarme se déclenche automatiquement.',
-            ),
-            const Divider(),
-            _buildFAQItem(
-              'Que faire en cas de fausse alarme?',
-              'En cas de fausse alarme, vous pouvez utiliser l\'application pour désactiver temporairement l\'alarme. Assurez-vous toutefois de vérifier qu\'il n\'y a pas de danger réel avant de la désactiver.',
-            ),
-            const Divider(),
-            _buildFAQItem(
-              'Comment tester mon système?',
-              'Pour tester votre système, utilisez la fonction "Test d\'alarme" dans la section "Actions rapides" de l\'application. Cela déclenchera une séquence de test pour vérifier que tous vos détecteurs fonctionnent correctement.',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+            const SizedBox(height: 24),
 
-  Widget _buildUserGuideSection() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Guide d\'utilisation',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            // Section Contact
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Nous contacter',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Si vous avez des questions ou rencontrez des problèmes, n\'hésitez pas à nous envoyer un message :',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        controller: _subjectController,
+                        label: 'Sujet',
+                        hint: 'Entrez le sujet de votre message',
+                        prefixIcon: Icons.subject,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Veuillez entrer un sujet';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        controller: _messageController,
+                        label: 'Message',
+                        hint: 'Décrivez votre problème ou question en détail',
+                        prefixIcon: Icons.message,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Veuillez entrer votre message';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      CustomButton(
+                        text: 'ENVOYER',
+                        isLoading: _isLoading,
+                        onPressed: _submitComment,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 16),
-            ListTile(
-              title: const Text('Installation du détecteur'),
-              leading: const Icon(Icons.build_outlined),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // Navigation vers le guide d'installation
-              },
-            ),
-            const Divider(),
-            ListTile(
-              title: const Text('Configuration de l\'application'),
-              leading: const Icon(Icons.settings_outlined),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // Navigation vers le guide de configuration
-              },
-            ),
-            const Divider(),
-            ListTile(
-              title: const Text('Résolution des problèmes'),
-              leading: const Icon(Icons.help_outline),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // Navigation vers le guide de résolution des problèmes
-              },
+
+            const SizedBox(height: 24),
+
+            // Section Contact direct
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Contact direct',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.email,
+                        color: Colors.deepOrange,
+                      ),
+                      title: const Text('Email'),
+                      subtitle: const Text('detecteurincendie7@gmail.com'),
+                      onTap: () {
+                        // Ouvrir l'application email
+                      },
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.phone,
+                        color: Colors.deepOrange,
+                      ),
+                      title: const Text('Téléphone'),
+                      subtitle: const Text('+212 XXX XXX XXX'),
+                      onTap: () {
+                        // Ouvrir l'application téléphone
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -149,42 +279,8 @@ class HelpScreen extends StatelessWidget {
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Text(answer, style: TextStyle(color: Colors.grey[700])),
-        ),
+        Padding(padding: const EdgeInsets.all(16.0), child: Text(answer)),
       ],
     );
-  }
-
-  Future<void> _sendEmail(BuildContext context) async {
-    final Uri emailLaunchUri = Uri(
-      scheme: 'mailto',
-      path: 'detecteurincendie7gmail.com',
-      query: encodeQueryParameters({
-        'subject': 'Aide - Application Fire Detector',
-        'body':
-            'Bonjour,\n\nJ\'ai besoin d\'aide concernant l\'application Fire Detector.\n\nCordialement,\n$userEmail',
-      }),
-    );
-
-    if (await canLaunchUrl(emailLaunchUri)) {
-      await launchUrl(emailLaunchUri);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Impossible d\'ouvrir l\'application d\'email'),
-        ),
-      );
-    }
-  }
-
-  String? encodeQueryParameters(Map<String, String> params) {
-    return params.entries
-        .map(
-          (e) =>
-              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}',
-        )
-        .join('&');
   }
 }
