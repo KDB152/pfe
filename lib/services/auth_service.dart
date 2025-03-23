@@ -9,33 +9,30 @@ class AuthService {
 
   Future<bool> isAdmin() async {
     User? user = _auth.currentUser;
-    if (user != null) {
-      DocumentSnapshot doc =
-          await _firestore.collection('users').doc(user.uid).get();
-      return doc.exists &&
-          doc.get('role') == 'admin' &&
-          doc.get('email') == 'mehdielabed86@gmail.com';
-    }
-    return false;
+    // Vérifier si l'utilisateur est connecté et si son email est celui de l'admin
+    return user != null && user.email == 'mehdielabed86@gmail.com';
   }
 
   // Créer un nouvel utilisateur
-  Future<UserCredential> signUp(String email, String password) async {
-    final userCredential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+  Future<void> signUp(String email, String password, String username) async {
+    try {
+      // Créer l'utilisateur
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
 
-    // Ajouter l'utilisateur à Firestore avec le rôle normal
-    await _firestore.collection('users').doc(userCredential.user!.uid).set({
-      'email': email,
-      'role': 'user',
-      'isApproved': false, // Nécessite approbation par admin
-      'isActive': true,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    return userCredential;
+      // Ajouter les informations supplémentaires
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'email': email,
+        'username': username,
+        'isAdmin': false,
+        'isActive': true,
+        'isApproved': false, // Requiert l'approbation d'un administrateur
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLogin': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw e;
+    }
   }
 
   // État utilisateur actuel
@@ -106,6 +103,23 @@ class AuthService {
         await prefs.remove('pending_username');
         await prefs.remove('pending_email');
       }
+    }
+  }
+
+  Future<void> signIn(String email, String password) async {
+    try {
+      // Connecter l'utilisateur
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Mettre à jour la date de dernière connexion
+      await _firestore.collection('users').doc(userCredential.user!.uid).update(
+        {'lastLogin': FieldValue.serverTimestamp()},
+      );
+    } catch (e) {
+      throw e;
     }
   }
 

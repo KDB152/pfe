@@ -49,6 +49,9 @@ class _HomeScreenState extends State<HomeScreen>
       duration: const Duration(milliseconds: 500),
     );
 
+    // Vérifier si l'utilisateur est admin
+    _checkAdminStatus();
+
     // Initialiser le service de capteurs
     _sensorService.initialize().then((_) {
       // S'abonner aux mises à jour des capteurs
@@ -94,10 +97,10 @@ class _HomeScreenState extends State<HomeScreen>
           );
           break;
         case 2:
-          Navigator.pushNamed(context, '/notifications');
+          Navigator.pushNamed(context, '/Notifications');
           break;
         case 3:
-          Navigator.pushNamed(context, '/settings');
+          Navigator.pushNamed(context, '/Paramètres');
           break;
       }
     } else {
@@ -106,13 +109,13 @@ class _HomeScreenState extends State<HomeScreen>
           // Rester sur Home
           break;
         case 1:
-          Navigator.pushNamed(context, '/notifications');
+          Navigator.pushNamed(context, '/Notifications');
           break;
         case 2:
-          Navigator.pushNamed(context, '/settings');
+          Navigator.pushNamed(context, '/Paramètres');
           break;
         case 3:
-          Navigator.pushNamed(context, '/help');
+          Navigator.pushNamed(context, '/Aide');
           break;
       }
     }
@@ -498,12 +501,12 @@ class _HomeScreenState extends State<HomeScreen>
                           color: Colors.deepOrange.shade50,
                           shape: BoxShape.circle,
                         ),
-                        child: Center(
-                          child: Icon(
-                            Icons.local_fire_department,
-                            color: Colors.deepOrange,
-                            size: 50,
-                          ),
+                        child: Icon(
+                          _isAdmin
+                              ? Icons.admin_panel_settings
+                              : Icons.local_fire_department,
+                          color: Colors.deepOrange,
+                          size: 50,
                         ),
                       ),
                       SizedBox(height: 16),
@@ -523,12 +526,27 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           ListTile(
             leading: const Icon(Icons.home),
-            title: const Text('Acceuil'),
+            title: const Text('Accueil'),
             selected: true,
             onTap: () {
               Navigator.pop(context); // Ferme le drawer
             },
           ),
+          // Afficher "Gestionnaire des utilisateurs" pour les administrateurs
+          if (_isAdmin)
+            ListTile(
+              leading: const Icon(Icons.people),
+              title: const Text('Gestionnaire des utilisateurs'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UserManagementScreen(),
+                  ),
+                );
+              },
+            ),
           ListTile(
             leading: const Icon(Icons.notifications),
             title: const Text('Notifications'),
@@ -555,14 +573,16 @@ class _HomeScreenState extends State<HomeScreen>
               );
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.help),
-            title: const Text('Aide'),
-            onTap: () {
-              Navigator.pop(context);
-              _sendHelpEmail();
-            },
-          ),
+          // Afficher "Aide" seulement pour les utilisateurs non-administrateurs
+          if (!_isAdmin)
+            ListTile(
+              leading: const Icon(Icons.help),
+              title: const Text('Aide'),
+              onTap: () {
+                Navigator.pop(context);
+                _sendHelpEmail();
+              },
+            ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
@@ -571,6 +591,7 @@ class _HomeScreenState extends State<HomeScreen>
               style: TextStyle(color: Colors.red),
             ),
             onTap: () async {
+              // Logique de déconnexion inchangée
               // Ferme le drawer
               Navigator.pop(context);
 
@@ -605,8 +626,7 @@ class _HomeScreenState extends State<HomeScreen>
               // Si l'utilisateur confirme la déconnexion
               if (confirmLogout) {
                 try {
-                  final authService =
-                      AuthService(); // ou utilisez une instance que vous avez déjà
+                  final authService = AuthService();
                   await authService.signOut();
 
                   // Navigation vers l'écran de connexion et suppression de toutes les routes précédentes
@@ -666,18 +686,25 @@ class _HomeScreenState extends State<HomeScreen>
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            const CircleAvatar(
-              backgroundColor: Colors.orange,
-              child: Icon(Icons.person, color: Colors.white),
+            CircleAvatar(
+              backgroundColor: _isAdmin ? Colors.red : Colors.orange,
+              child: Icon(
+                _isAdmin ? Icons.admin_panel_settings : Icons.person,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Bienvenue, Utilisateur',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  Text(
+                    _isAdmin ? 'BONJOUR ADMIN' : 'Bienvenue, Utilisateur',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: _isAdmin ? Colors.red : Colors.black,
+                    ),
                   ),
                   Text(
                     widget.userEmail,
