@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 
 class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final String _collection = 'users';
 
   // Récupérer les détails d'un utilisateur par UID
@@ -18,6 +20,46 @@ class UserService {
       print('Erreur lors de la récupération des détails utilisateur: $e');
       return null;
     }
+  }
+
+  Future<int> getUnreadCommentsCount() async {
+    try {
+      QuerySnapshot querySnapshot =
+          await _firestore
+              .collection('user_comments')
+              .where('status', isEqualTo: 'non_lu')
+              .get();
+
+      return querySnapshot.docs.length;
+    } catch (e) {
+      print('Erreur lors du comptage des messages non lus: $e');
+      return 0;
+    }
+  }
+
+  // Méthode pour soumettre un commentaire
+  Future<void> submitComment(String subject, String message) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception('Utilisateur non connecté');
+
+    DocumentSnapshot userDoc =
+        await _firestore.collection('users').doc(currentUser.uid).get();
+
+    String userName = 'Utilisateur';
+    if (userDoc.exists) {
+      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+      userName = userData['username'] ?? 'Utilisateur';
+    }
+
+    await _firestore.collection('user_comments').add({
+      'userId': currentUser.uid,
+      'userName': userName,
+      'userEmail': currentUser.email,
+      'subject': subject,
+      'message': message,
+      'timestamp': FieldValue.serverTimestamp(),
+      'status': 'non_lu',
+    });
   }
 
   // Récupérer les détails d'un utilisateur par email

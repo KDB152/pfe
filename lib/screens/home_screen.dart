@@ -115,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen>
           Navigator.pushNamed(context, '/Paramètres');
           break;
         case 3:
-          Navigator.pushNamed(context, '/Aide');
+          Navigator.pushNamed(context, '/Aide & Support');
           break;
       }
     }
@@ -577,7 +577,7 @@ class _HomeScreenState extends State<HomeScreen>
           if (!_isAdmin)
             ListTile(
               leading: const Icon(Icons.help),
-              title: const Text('Aide'),
+              title: const Text('Aide & Support'),
               onTap: () {
                 Navigator.pop(context);
                 _sendHelpEmail();

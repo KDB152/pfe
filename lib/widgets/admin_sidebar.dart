@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../screens/user_management_screen.dart';
 import '../screens/users_comments_screen.dart';
+import '../services/user_service.dart';
 
 class AdminSidebar extends StatelessWidget {
   final String userEmail;
   final int selectedIndex;
   final Function(int) onItemTapped;
   final AuthService _authService = AuthService();
+  final UserService _userService = UserService();
 
   AdminSidebar({
     super.key,
@@ -79,6 +81,7 @@ class AdminSidebar extends StatelessWidget {
                     ),
                   ),
                 ),
+
                 _buildMenuItem(
                   context,
                   'Commentaires des Utilisateurs',
@@ -89,9 +92,9 @@ class AdminSidebar extends StatelessWidget {
                       builder: (context) => UsersCommentsScreen(),
                     ),
                   ),
-                  // Ajoutez un badge pour montrer le nombre de messages non lus
-                  badgeCount: _getBadgeCount(),
+                  isUnreadComments: true,
                 ),
+
                 _buildMenuItem(
                   context,
                   'Gestion des Capteurs',
@@ -135,32 +138,54 @@ class AdminSidebar extends StatelessWidget {
     IconData icon,
     VoidCallback onTap, {
     int? badgeCount,
+    bool isUnreadComments = false,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.deepOrange),
-      title: Text(title),
-      trailing:
-          badgeCount != null && badgeCount > 0
-              ? Container(
-                padding: EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  badgeCount.toString(),
-                  style: TextStyle(color: Colors.white, fontSize: 12),
-                ),
-              )
-              : null,
-      onTap: onTap,
-    );
-  }
-
-  // Cette méthode sera remplacée par une vraie requête Firestore
-  int _getBadgeCount() {
-    // Retourner un nombre statique pour l'exemple
-    // Dans une vraie application, vous feriez une requête pour compter les messages non lus
-    return 5;
+    if (isUnreadComments) {
+      return FutureBuilder<int>(
+        future: _userService.getUnreadCommentsCount(),
+        builder: (context, snapshot) {
+          int count = snapshot.data ?? 0;
+          return ListTile(
+            leading: Icon(icon, color: Colors.deepOrange),
+            title: Text(title),
+            trailing:
+                count > 0
+                    ? Container(
+                      padding: EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        count.toString(),
+                        style: TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    )
+                    : null,
+            onTap: onTap,
+          );
+        },
+      );
+    } else {
+      return ListTile(
+        leading: Icon(icon, color: Colors.deepOrange),
+        title: Text(title),
+        trailing:
+            badgeCount != null && badgeCount > 0
+                ? Container(
+                  padding: EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    badgeCount.toString(),
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                )
+                : null,
+        onTap: onTap,
+      );
+    }
   }
 }
