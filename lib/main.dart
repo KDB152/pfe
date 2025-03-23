@@ -6,6 +6,7 @@ import 'screens/notifications_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/help_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'screens/user_management_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -128,6 +129,7 @@ class FireDetectorApp extends StatelessWidget {
             (context) => const SettingsScreen(email: 'mehdielabed86@gmail.com'),
         '/help':
             (context) => const HelpScreen(userEmail: 'mehdielabed86@gmail.com'),
+        '/user-management': (context) => const UserManagementScreen(),
       },
     );
   }

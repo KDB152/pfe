@@ -8,6 +8,8 @@ import './settings_screen.dart';
 import '../services/auth_service.dart';
 import '../services/sensor_service.dart';
 import '../screens/login_screen.dart';
+import '../widgets/admin_sidebar.dart';
+import '../screens/user_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userEmail;
@@ -22,6 +24,9 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   SensorData? _sensorData;
   bool _isLoading = true;
+  int _selectedIndex = 0;
+  bool _isAdmin = false;
+  final AuthService _authService = AuthService();
   final SensorService _sensorService = SensorService();
   late StreamSubscription<SensorData> _sensorSubscription;
 
@@ -61,6 +66,56 @@ class _HomeScreenState extends State<HomeScreen>
     _sensorSubscription.cancel();
     _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkAdminStatus() async {
+    bool isAdmin = await _authService.isAdmin();
+    setState(() {
+      _isAdmin = isAdmin;
+      _isLoading = false;
+    });
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    // Navigation basée sur l'index sélectionné
+    if (_isAdmin) {
+      switch (index) {
+        case 0:
+          // Rester sur Home
+          break;
+        case 1:
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => UserManagementScreen()),
+          );
+          break;
+        case 2:
+          Navigator.pushNamed(context, '/notifications');
+          break;
+        case 3:
+          Navigator.pushNamed(context, '/settings');
+          break;
+      }
+    } else {
+      switch (index) {
+        case 0:
+          // Rester sur Home
+          break;
+        case 1:
+          Navigator.pushNamed(context, '/notifications');
+          break;
+        case 2:
+          Navigator.pushNamed(context, '/settings');
+          break;
+        case 3:
+          Navigator.pushNamed(context, '/help');
+          break;
+      }
+    }
   }
 
   void _onSensorDataUpdate(SensorData data) {
