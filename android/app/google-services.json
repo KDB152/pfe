@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "183744816903",
+    "project_id": "projet-fin-d-etudes-fe6a7",
+    "storage_bucket": "projet-fin-d-etudes-fe6a7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:183744816903:android:c53d8875d38311fe90c7a2",
+        "android_client_info": {
+          "package_name": "com.example.pfe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzlaIUINPB2PnUPlFXo_NnIkVHKeX1UTg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
