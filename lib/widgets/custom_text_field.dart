@@ -10,9 +10,10 @@ class CustomTextField extends StatefulWidget {
   final bool readOnly;
   final TextInputType keyboardType;
   final Function()? onTap;
+  final int? maxLines;
 
   const CustomTextField({
-    super.key,
+    Key? key,
     required this.controller,
     required this.label,
     required this.hint,
@@ -22,7 +23,8 @@ class CustomTextField extends StatefulWidget {
     this.readOnly = false,
     this.keyboardType = TextInputType.text,
     this.onTap,
-  });
+    this.maxLines = 1,
+  }) : super(key: key);
 
   @override
   _CustomTextFieldState createState() => _CustomTextFieldState();
@@ -49,6 +51,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
           controller: widget.controller,
           obscureText: widget.isPassword && _obscureText,
           validator: widget.validator,
+          maxLines: widget.maxLines,
           readOnly: widget.readOnly,
           keyboardType: widget.keyboardType,
           onTap: widget.onTap,

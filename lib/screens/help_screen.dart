@@ -20,10 +20,12 @@ class _HelpScreenState extends State<HelpScreen> {
   bool _isLoading = false;
   String _userName = '';
   String _userEmail = '';
+  int _rating = 0; // Default rating value
 
   @override
   void initState() {
     super.initState();
+    print("HelpScreen initialized"); // Add this
     _loadUserInfo();
   }
 
@@ -67,6 +69,7 @@ class _HelpScreenState extends State<HelpScreen> {
             'userEmail': _userEmail,
             'subject': _subjectController.text.trim(),
             'message': _messageController.text.trim(),
+            'rating': _rating, // Save the rating to Firestore
             'timestamp': FieldValue.serverTimestamp(),
             'status': 'non_lu', // Status: non_lu, en_cours, résolu
           });
@@ -74,6 +77,9 @@ class _HelpScreenState extends State<HelpScreen> {
           // Réinitialiser le formulaire
           _subjectController.clear();
           _messageController.clear();
+          setState(() {
+            _rating = 0; // Reset rating
+          });
 
           // Afficher un message de succès
           if (mounted) {
@@ -103,6 +109,27 @@ class _HelpScreenState extends State<HelpScreen> {
         }
       }
     }
+  }
+
+  // Rating widget
+  Widget _buildRatingBar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(5, (index) {
+        return IconButton(
+          icon: Icon(
+            index < _rating ? Icons.star : Icons.star_border,
+            color: Colors.amber,
+            size: 30,
+          ),
+          onPressed: () {
+            setState(() {
+              _rating = index + 1;
+            });
+          },
+        );
+      }),
+    );
   }
 
   @override
@@ -199,6 +226,7 @@ class _HelpScreenState extends State<HelpScreen> {
                         label: 'Message',
                         hint: 'Décrivez votre problème ou question en détail',
                         prefixIcon: Icons.message,
+                        maxLines: 5, // Allow multiple lines for the message
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Veuillez entrer votre message';
@@ -207,6 +235,19 @@ class _HelpScreenState extends State<HelpScreen> {
                         },
                       ),
                       const SizedBox(height: 24),
+
+                      // Add rating widget
+                      const Text(
+                        'Évaluez notre application:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildRatingBar(),
+                      const SizedBox(height: 24),
+
                       CustomButton(
                         text: 'ENVOYER',
                         isLoading: _isLoading,
@@ -220,7 +261,7 @@ class _HelpScreenState extends State<HelpScreen> {
 
             const SizedBox(height: 24),
 
-            // Section Contact direct
+            // Informations de contact (sans liens actifs)
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -232,7 +273,7 @@ class _HelpScreenState extends State<HelpScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Contact direct',
+                      'Informations de contact',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -246,9 +287,6 @@ class _HelpScreenState extends State<HelpScreen> {
                       ),
                       title: const Text('Email'),
                       subtitle: const Text('detecteurincendie7@gmail.com'),
-                      onTap: () {
-                        // Ouvrir l'application email
-                      },
                     ),
                     const Divider(),
                     ListTile(
@@ -258,9 +296,6 @@ class _HelpScreenState extends State<HelpScreen> {
                       ),
                       title: const Text('Téléphone'),
                       subtitle: const Text('+212 XXX XXX XXX'),
-                      onTap: () {
-                        // Ouvrir l'application téléphone
-                      },
                     ),
                   ],
                 ),
