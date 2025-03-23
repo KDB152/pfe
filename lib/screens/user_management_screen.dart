@@ -5,7 +5,7 @@ import '../services/auth_service.dart';
 import 'package:intl/intl.dart'; // Importez intl pour le formatage des dates
 
 class UserManagementScreen extends StatefulWidget {
-  const UserManagementScreen({super.key});
+  const UserManagementScreen({Key? key}) : super(key: key);
 
   @override
   _UserManagementScreenState createState() => _UserManagementScreenState();
@@ -174,9 +174,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 var isActive = userData['isActive'] ?? true;
                 var isApproved = userData['isApproved'] ?? false;
 
-                // Exclure l'administrateur principal
-                if (email == 'mehdielabed86@gmail.com') return false;
-
                 switch (_filterValue) {
                   case 'Actifs':
                     return isActive;
@@ -213,7 +210,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               var isActive = userData['isActive'] ?? true;
               var isApproved = userData['isApproved'] ?? false;
               var email = userData['email'] ?? 'No email';
-              var username = userData['username'] ?? 'Non défini';
+              var username = userData['username'] ?? 'Utilisateur';
               var createdAt = userData['createdAt'] as Timestamp?;
               var lastLogin = userData['lastLogin'] as Timestamp?;
 

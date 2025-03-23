@@ -9,8 +9,40 @@ class AuthService {
 
   Future<bool> isAdmin() async {
     User? user = _auth.currentUser;
-    // Vérifier si l'utilisateur est connecté et si son email est celui de l'admin
-    return user != null && user.email == 'mehdielabed86@gmail.com';
+    if (user == null) return false;
+
+    // Vérifier le statut admin dans Firestore plutôt que de comparer l'email
+    DocumentSnapshot userDoc =
+        await _firestore.collection('users').doc(user.uid).get();
+
+    if (userDoc.exists) {
+      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+      return userData['isAdmin'] == true;
+    }
+
+    if (user.email == 'mehdielabed86@gmail.com') {
+      // Vérifier si le document existe
+      DocumentSnapshot docSnap =
+          await _firestore.collection('users').doc(user.uid).get();
+
+      if (docSnap.exists) {
+        // Mettre à jour son statut comme admin si le document existe
+        await _firestore.collection('users').doc(user.uid).update({
+          'isAdmin': true,
+        });
+      } else {
+        // Créer le document s'il n'existe pas encore
+        await _firestore.collection('users').doc(user.uid).set({
+          'email': user.email,
+          'isAdmin': true,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      return true;
+    } else {
+      return false;
+    }
   }
 
   // Créer un nouvel utilisateur
@@ -20,13 +52,16 @@ class AuthService {
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
 
+      // Vérifier si c'est l'email initial d'admin
+      bool isAdminUser = email == 'mehdielabed86@gmail.com';
+
       // Ajouter les informations supplémentaires
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'email': email,
         'username': username,
-        'isAdmin': false,
+        'isAdmin': isAdminUser, // Définir comme admin si c'est l'email initial
         'isActive': true,
-        'isApproved': false, // Requiert l'approbation d'un administrateur
+        'isApproved': isAdminUser, // Auto-approuvé si admin
         'createdAt': FieldValue.serverTimestamp(),
         'lastLogin': FieldValue.serverTimestamp(),
       });
@@ -35,37 +70,31 @@ class AuthService {
     }
   }
 
-  // État utilisateur actuel
   Stream<User?> get user => _auth.authStateChanges();
 
-  // Vérifier si l'utilisateur est connecté
   Future<bool> isUserLoggedIn() async {
     return _auth.currentUser != null;
   }
 
-  // Récupérer l'utilisateur actuel
   User? getCurrentUser() {
     return _auth.currentUser;
   }
 
   // Inscription avec email et mot de passe
+
   Future<UserCredential> registerWithEmailAndPassword(
     String email,
     String password,
     String username,
   ) async {
     try {
-      // Créer l'utilisateur avec Firebase Auth
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // Envoyer l'email de vérification
       await result.user!.sendEmailVerification();
 
-      // Stocker les données temporairement - sans les enregistrer dans Firestore
-      // On va les stocker dans SharedPreferences pour les récupérer plus tard
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('pending_username', username);
       await prefs.setString('pending_email', email);
@@ -81,25 +110,26 @@ class AuthService {
   Future<void> createUserProfile() async {
     User? user = _auth.currentUser;
     if (user != null && user.emailVerified) {
-      // Récupérer les données temporaires
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? username = prefs.getString('pending_username');
       await Firebase.initializeApp();
 
-      // Vérifier si l'utilisateur existe déjà dans Firestore
       DocumentSnapshot userDoc =
           await _firestore.collection('users').doc(user.uid).get();
 
       if (!userDoc.exists) {
-        // Créer le profil utilisateur
+        // Vérifier si c'est l'email initial d'admin
+        bool isAdminUser = user.email == 'mehdielabed86@gmail.com';
+
         await _firestore.collection('users').doc(user.uid).set({
           'username': username ?? user.displayName ?? 'User',
           'email': user.email,
+          'isAdmin':
+              isAdminUser, // Définir comme admin si c'est l'email initial
           'createdAt': Timestamp.now(),
           'emailVerified': user.emailVerified,
         });
 
-        // Nettoyer les données temporaires
         await prefs.remove('pending_username');
         await prefs.remove('pending_email');
       }
@@ -108,13 +138,11 @@ class AuthService {
 
   Future<void> signIn(String email, String password) async {
     try {
-      // Connecter l'utilisateur
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // Mettre à jour la date de dernière connexion
       await _firestore.collection('users').doc(userCredential.user!.uid).update(
         {'lastLogin': FieldValue.serverTimestamp()},
       );
@@ -221,6 +249,11 @@ class AuthService {
           androidMinimumVersion: '12',
         ),
       );
+
+      // Mettre à jour l'email dans Firestore aussi
+      await _firestore.collection('users').doc(user.uid).update({
+        'email': newEmail,
+      });
     }
   }
 
