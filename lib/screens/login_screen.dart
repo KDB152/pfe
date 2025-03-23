@@ -7,6 +7,7 @@ import '../widgets/custom_button.dart';
 import '../screens/forgot_password_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/home_screen.dart';
+import '../screens/disabled_screen.dart';
 import '../screens/verify_email_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -82,7 +83,6 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        // Tentative directe de connexion sans vérifier si l'email existe d'abord
         await _saveUserEmailPassword();
 
         try {
@@ -90,6 +90,20 @@ class _LoginScreenState extends State<LoginScreen> {
             _emailController.text.trim(),
             _passwordController.text.trim(),
           );
+
+          // Vérifier si le compte est actif
+          bool isActive = await _authService.isUserActive(
+            userCredential.user!.uid,
+          );
+
+          if (!isActive) {
+            // Si le compte est désactivé, rediriger vers l'écran de compte désactivé
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => DisabledScreen()),
+            );
+            return;
+          }
 
           // Vérifier si l'email est vérifié
           if (userCredential.user != null &&

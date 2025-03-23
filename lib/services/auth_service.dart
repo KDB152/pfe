@@ -118,6 +118,23 @@ class AuthService {
     }
   }
 
+  Future<bool> isUserActive(String uid) async {
+    try {
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(uid).get();
+
+      if (userDoc.exists) {
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        return userData['isActive'] == true;
+      }
+
+      return true; // Par défaut, considérer le compte comme actif
+    } catch (e) {
+      print('Erreur lors de la vérification du statut du compte: $e');
+      return true; // En cas d'erreur, permettre la connexion
+    }
+  }
+
   // Créer le profil utilisateur dans Firestore après vérification de l'email
   Future<void> createUserProfile() async {
     User? user = _auth.currentUser;
@@ -173,6 +190,19 @@ class AuthService {
         email: email,
         password: password,
       );
+      // Vérifier si le compte est actif
+      bool isActive = await isUserActive(result.user!.uid);
+
+      // Mettre à jour la dernière connexion
+      await _firestore.collection('users').doc(result.user!.uid).update({
+        'lastLogin': FieldValue.serverTimestamp(),
+      });
+
+      // Si le compte n'est pas actif, ajouter cette information à UserCredential
+      // en utilisant AdditionalUserInfo (pas directement possible)
+      // Nous allons plutôt gérer cela au niveau de l'écran de connexion
+
+      return result;
       return result;
     } catch (e) {
       print('E-mail et/ou mot de passe incorrect(s)');
