@@ -168,7 +168,7 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
                   ),
                   SizedBox(height: 10),
                   Text(
-                    'Admin Panel',
+                    'Administrateur',
                     style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 ],

@@ -130,9 +130,7 @@ class FireDetectorApp extends StatelessWidget {
         '/settings':
             (context) =>
                 const SettingsScreen(email: 'detecteurincendie7@gmail.com'),
-        '/help':
-            (context) =>
-                const HelpScreen(), // Modifier cette ligne pour enlever le paramètre userEmail
+        '/Aide & Support': (context) => const HelpScreen(),
         '/user-management': (context) => const UserManagementScreen(),
         '/users-comments':
             (context) => const UsersCommentsScreen(), // Ajouter cette route

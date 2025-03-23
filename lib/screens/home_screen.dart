@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/sensor_data_model.dart';
 import './notifications_screen.dart';
 import './settings_screen.dart';
@@ -11,6 +10,7 @@ import '../screens/login_screen.dart';
 import '../widgets/admin_sidebar.dart';
 import '../screens/user_management_screen.dart';
 import '../screens/users_comments_screen.dart';
+import './help_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userEmail;
@@ -583,7 +583,7 @@ class _HomeScreenState extends State<HomeScreen>
               title: const Text('Aide & Support'),
               onTap: () {
                 Navigator.pop(context);
-                _sendHelpEmail();
+                Navigator.pushNamed(context, '/Aide & Support');
               },
             ),
           // Dans le drawer de HomeScreen, ajouter cet élément pour les administrateurs
@@ -661,37 +661,6 @@ class _HomeScreenState extends State<HomeScreen>
         ],
       ),
     );
-  }
-
-  Future<void> _sendHelpEmail() async {
-    final Uri emailLaunchUri = Uri(
-      scheme: 'mailto',
-      path: 'detecteurincendie7@gmail.com',
-      query: encodeQueryParameters({
-        'subject': 'Aide - Application Fire Detector',
-        'body':
-            'Bonjour,\n\nJ\'ai besoin d\'aide concernant l\'application Fire Detector.\n\nCordialement,\n${widget.userEmail}',
-      }),
-    );
-
-    if (await canLaunchUrl(emailLaunchUri)) {
-      await launchUrl(emailLaunchUri);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Impossible d\'ouvrir l\'application d\'email'),
-        ),
-      );
-    }
-  }
-
-  String? encodeQueryParameters(Map<String, String> params) {
-    return params.entries
-        .map(
-          (e) =>
-              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}',
-        )
-        .join('&');
   }
 
   Widget _buildUserInfoCard() {

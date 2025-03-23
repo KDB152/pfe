@@ -295,7 +295,7 @@ class _HelpScreenState extends State<HelpScreen> {
                         color: Colors.deepOrange,
                       ),
                       title: const Text('Téléphone'),
-                      subtitle: const Text('+212 XXX XXX XXX'),
+                      subtitle: const Text('+216 22 900 603'),
                     ),
                   ],
                 ),
