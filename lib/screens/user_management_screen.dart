@@ -79,10 +79,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       if (isAdmin && isActive) {
         // Déconnexion et redirection vers l'écran de login
         await _authService.signOut();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-        );
       }
     }
   }
@@ -327,7 +323,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           onPressed: () => _approveUser(userId),
                           tooltip: 'Approuver',
                         ),
-                      if (!isCurrentUser && isAdmin)
+                      if (!isCurrentUser)
                         IconButton(
                           icon: Icon(
                             isActive ? Icons.block : Icons.check_circle,

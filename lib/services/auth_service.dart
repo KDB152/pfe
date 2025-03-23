@@ -98,10 +98,22 @@ class AuthService {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('pending_username', username);
       await prefs.setString('pending_email', email);
+      // Créer un document correspondant dans Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(result.user!.uid)
+          .set({
+            'email': email,
+            'username': username,
+            'isActive': true,
+            'isApproved': false, // À approuver par un admin
+            'isAdmin': false,
+            'createdAt': FieldValue.serverTimestamp(),
+            'lastLogin': FieldValue.serverTimestamp(),
+          });
 
       return result;
     } catch (e) {
-      print('Erreur lors de l\'inscription: $e');
       rethrow;
     }
   }
