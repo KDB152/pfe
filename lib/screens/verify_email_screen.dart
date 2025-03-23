@@ -13,12 +13,12 @@ class VerifyEmailScreen extends StatefulWidget {
   final String? token;
 
   const VerifyEmailScreen({
-    Key? key,
+    super.key,
     this.action,
     this.newEmail,
     this.uid,
     this.token,
-  }) : super(key: key);
+  });
 
   @override
   _VerifyEmailScreenState createState() => _VerifyEmailScreenState();
@@ -333,16 +333,16 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   widget.action == null)
                 ElevatedButton(
                   onPressed: _canResendEmail ? _resendVerificationEmail : null,
-                  child: Text(
-                    _canResendEmail
-                        ? 'Renvoyer l\'email de vérification'
-                        : 'Renvoyer dans $_resendTimeout secondes',
-                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepOrange,
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     textStyle: TextStyle(fontSize: 16),
+                  ),
+                  child: Text(
+                    _canResendEmail
+                        ? 'Renvoyer l\'email de vérification'
+                        : 'Renvoyer dans $_resendTimeout secondes',
                   ),
                 ),
 
@@ -360,7 +360,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                       MaterialPageRoute(builder: (context) => LoginScreen()),
                     );
                   },
-                    child: Text('Retour à la connexion'),
+                  child: Text('Retour à la connexion'),
                 ),
             ],
           ),

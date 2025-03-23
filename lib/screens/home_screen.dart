@@ -14,7 +14,7 @@ import '../screens/user_management_screen.dart';
 class HomeScreen extends StatefulWidget {
   final String userEmail;
 
-  const HomeScreen({Key? key, required this.userEmail}) : super(key: key);
+  const HomeScreen({super.key, required this.userEmail});
 
   @override
   _HomeScreenState createState() => _HomeScreenState();

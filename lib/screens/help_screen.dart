@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 class HelpScreen extends StatelessWidget {
   final String userEmail;
 
-  const HelpScreen({Key? key, required this.userEmail}) : super(key: key);
+  const HelpScreen({super.key, required this.userEmail});
 
   @override
   Widget build(BuildContext context) {

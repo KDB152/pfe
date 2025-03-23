@@ -12,7 +12,7 @@ class CustomTextField extends StatefulWidget {
   final Function()? onTap;
 
   const CustomTextField({
-    Key? key,
+    super.key,
     required this.controller,
     required this.label,
     required this.hint,
@@ -22,7 +22,7 @@ class CustomTextField extends StatefulWidget {
     this.readOnly = false,
     this.keyboardType = TextInputType.text,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   _CustomTextFieldState createState() => _CustomTextFieldState();

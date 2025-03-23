@@ -31,7 +31,7 @@ class AuthService {
         'lastLogin': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      throw e;
+      rethrow;
     }
   }
 
@@ -119,7 +119,7 @@ class AuthService {
         {'lastLogin': FieldValue.serverTimestamp()},
       );
     } catch (e) {
-      throw e;
+      rethrow;
     }
   }
 
@@ -172,7 +172,7 @@ class AuthService {
   Future<void> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       // Ne pas modifier l'exception, juste la propager
       rethrow;
     } catch (e) {

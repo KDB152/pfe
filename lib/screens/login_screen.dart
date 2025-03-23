@@ -10,6 +10,8 @@ import '../screens/home_screen.dart';
 import '../screens/verify_email_screen.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -295,7 +297,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("Vous n\'avez pas un compte ?"),
+                    Text("Vous n'avez pas un compte ?"),
                     TextButton(
                       onPressed: () {
                         Navigator.push(

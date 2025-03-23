@@ -22,7 +22,7 @@ Future<void> main() async {
 }
 
 class FireDetectorApp extends StatelessWidget {
-  const FireDetectorApp({Key? key}) : super(key: key);
+  const FireDetectorApp({super.key});
 
   @override
   Widget build(BuildContext context) {

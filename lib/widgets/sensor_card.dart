@@ -6,10 +6,10 @@ class SensorCard extends StatelessWidget {
   final VoidCallback onRefresh;
 
   const SensorCard({
-    Key? key,
+    super.key,
     required this.sensorData,
     required this.onRefresh,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

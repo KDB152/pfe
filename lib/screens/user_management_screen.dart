@@ -5,7 +5,7 @@ import '../services/auth_service.dart';
 import 'package:intl/intl.dart'; // Importez intl pour le formatage des dates
 
 class UserManagementScreen extends StatefulWidget {
-  const UserManagementScreen({Key? key}) : super(key: key);
+  const UserManagementScreen({super.key});
 
   @override
   _UserManagementScreenState createState() => _UserManagementScreenState();

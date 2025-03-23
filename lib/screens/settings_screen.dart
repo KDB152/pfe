@@ -6,7 +6,7 @@ import '../screens/login_screen.dart';
 class SettingsScreen extends StatefulWidget {
   final String email;
 
-  const SettingsScreen({Key? key, required this.email}) : super(key: key);
+  const SettingsScreen({super.key, required this.email});
 
   @override
   _SettingsScreenState createState() => _SettingsScreenState();

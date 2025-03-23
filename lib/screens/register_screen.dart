@@ -6,6 +6,8 @@ import '../screens/login_screen.dart';
 import '../screens/verify_email_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
   @override
   _RegisterScreenState createState() => _RegisterScreenState();
 }

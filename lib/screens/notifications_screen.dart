@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/sensor_data_model.dart';
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({Key? key}) : super(key: key);
+  const NotificationsScreen({super.key});
 
   @override
   _NotificationsScreenState createState() => _NotificationsScreenState();

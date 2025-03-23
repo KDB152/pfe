@@ -4,7 +4,7 @@ import '../services/auth_service.dart';
 class AppDrawer extends StatelessWidget {
   final bool isAdmin;
 
-  AppDrawer({required this.isAdmin});
+  AppDrawer({super.key, required this.isAdmin});
 
   final AuthService _authService = AuthService();
 
