@@ -91,7 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Zone Dangereuse',
+              'Gestion du Compte',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
