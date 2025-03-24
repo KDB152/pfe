@@ -267,6 +267,32 @@ class AuthService {
     }
   }
 
+  Future<void> deleteUser(String uid) async {
+    try {
+      // Supprimer les données utilisateur de Firestore d'abord
+      await _firestore.collection('users').doc(uid).delete();
+
+      // Si c'est l'utilisateur actuel qui est supprimé
+      User? currentUser = _auth.currentUser;
+      if (currentUser != null && currentUser.uid == uid) {
+        // Supprimer le compte de Firebase Auth
+        await currentUser.delete();
+        // Déconnexion après suppression
+        await signOut();
+      } else {
+        // Si c'est un admin qui supprime un autre utilisateur,
+        // nous devons utiliser une approche différente
+        // Comme nous ne pouvons pas utiliser Cloud Functions,
+        // nous ne pouvons supprimer que les données Firestore de l'utilisateur
+        // Le compte Firebase Auth restera, mais l'utilisateur ne pourra pas se connecter
+        // car ses données utilisateur n'existent plus
+      }
+    } catch (e) {
+      print('Erreur lors de la suppression du compte: $e');
+      rethrow;
+    }
+  }
+
   // Supprimer les identifiants sauvegardés
   Future<void> clearSavedCredentials() async {
     try {

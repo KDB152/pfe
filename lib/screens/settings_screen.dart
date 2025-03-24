@@ -644,17 +644,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _deleteAccount() async {
-    final AuthService _authService = AuthService();
-    final UserService _userService = UserService();
-
-    // Afficher une boîte de dialogue de confirmation
+    // Demander confirmation
     bool confirmDelete = await showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Confirmer la suppression du compte'),
+          title: Text('Confirmer la suppression'),
           content: Text(
-            'Êtes-vous sûr de vouloir supprimer votre compte ?\n\nCette action est irréversible et vous perdrez définitivement toutes vos données.',
+            'Êtes-vous sûr de vouloir supprimer votre compte?\n\nCette action est irréversible et supprimera définitivement toutes vos données.',
           ),
           actions: [
             TextButton(
@@ -664,14 +661,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: Text('Supprimer mon compte'),
+              child: Text('Supprimer'),
             ),
           ],
         );
       },
     );
 
-    // Si l'utilisateur a confirmé la suppression
     if (confirmDelete == true) {
       try {
         // Afficher un indicateur de chargement
@@ -695,23 +691,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           },
         );
 
-        // Récupérer l'utilisateur courant
-        User? currentUser = _authService.getCurrentUser();
-        if (currentUser == null) {
-          throw Exception("Aucun utilisateur connecté");
+        // Obtenir l'ID de l'utilisateur actuel
+        final currentUser = _authService.getCurrentUser();
+        if (currentUser != null) {
+          await _authService.deleteUser(currentUser.uid);
         }
-
-        // Supprimer l'utilisateur complètement
-        await _userService.deleteUserCompletely(currentUser.uid);
 
         // Fermer le dialogue de chargement
         Navigator.of(context).pop();
 
-        // Déconnexion et redirection vers l'écran de login
-        await _authService.signOut();
+        // Rediriger vers l'écran de connexion
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
 
-        // Afficher un message de confirmation
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Votre compte a été supprimé avec succès'),
@@ -724,7 +715,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur lors de la suppression du compte: $e'),
+            content: Text('Erreur lors de la suppression: $e'),
             backgroundColor: Colors.red,
           ),
         );

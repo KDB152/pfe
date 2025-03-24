@@ -136,7 +136,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         );
 
         // Supprimer l'utilisateur complètement
-        await _userService.deleteUserCompletely(userId);
+        await _authService.deleteUser(userId);
 
         // Fermer le dialogue de chargement
         if (mounted) Navigator.of(context).pop();
