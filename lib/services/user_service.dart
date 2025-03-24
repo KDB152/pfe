@@ -39,6 +39,23 @@ class UserService {
     }
   }
 
+  // Vérifier si un email existe dans la base Firestore
+  Future<bool> checkEmailExists(String email) async {
+    try {
+      QuerySnapshot querySnapshot =
+          await _firestore
+              .collection(_collection)
+              .where('email', isEqualTo: email)
+              .limit(1)
+              .get();
+
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      print('Erreur lors de la vérification de l\'email: $e');
+      return false;
+    }
+  }
+
   // Méthode pour soumettre un commentaire
   Future<void> submitComment(String subject, String message) async {
     final currentUser = _auth.currentUser;

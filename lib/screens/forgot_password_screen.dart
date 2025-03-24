@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
+import '../services/user_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -33,6 +34,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       });
 
       try {
+        // Vérifier d'abord si l'email existe dans Firestore
+        final userService = UserService();
+        final userExists = await userService.checkEmailExists(
+          _emailController.text.trim(),
+        );
+
+        if (!userExists) {
+          setState(() {
+            _message = "Aucun compte lié à cette adresse e-mail";
+            _isSuccess = false;
+            _isLoading = false;
+          });
+          return;
+        }
+
+        // Si l'email existe, procéder à la réinitialisation
         await _authService.resetPassword(_emailController.text.trim());
         setState(() {
           _message =
