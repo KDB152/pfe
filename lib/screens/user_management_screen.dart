@@ -95,7 +95,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _deleteUser(String userId, String username) async {
-    // Afficher une boîte de dialogue de confirmation
     bool confirmDelete = await showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -119,10 +118,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       },
     );
 
-    // Si l'utilisateur a confirmé la suppression
     if (confirmDelete == true) {
       try {
-        // Afficher un indicateur de chargement
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -143,7 +140,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           },
         );
 
-        // Supprimer l'utilisateur complètement
+        // Utiliser la nouvelle méthode deleteUser
         await _authService.deleteUser(userId);
 
         // Fermer le dialogue de chargement

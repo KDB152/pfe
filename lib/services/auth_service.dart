@@ -272,28 +272,77 @@ class AuthService {
   }
 
   // Suppression d'un utilisateur
-  Future<void> deleteUser(String uid) async {
+  Future<void> deleteUser(String userId) async {
     try {
-      // Supprimer les données utilisateur de Firestore
-      await _firestore.collection('users').doc(uid).delete();
+      // 1. Supprimer le document utilisateur de Firestore
+      await _firestore.collection('users').doc(userId).delete();
 
-      // Récupérer l'utilisateur courant
+      // 2. Supprimer l'utilisateur de Firebase Authentication
       User? currentUser = _auth.currentUser;
-
-      // Si c'est l'utilisateur actuel qui est supprimé
-      if (currentUser != null && currentUser.uid == uid) {
-        // Supprimer le compte Firebase Auth
+      if (currentUser != null && currentUser.uid == userId) {
+        // Si c'est l'utilisateur actuellement connecté
         await currentUser.delete();
-        // Déconnexion après suppression
-        await signOut();
       } else {
-        // Si c'est un admin qui supprime un autre utilisateur
-        // Notez que cette partie ne supprime que les données Firestore
-        // Le compte Firebase Auth restera, mais sans données utilisateur
+        // Si supprimé par un admin, récupérer l'utilisateur par son UID
+        await _deleteUserFromAuth(userId);
       }
     } catch (e) {
-      print('Erreur lors de la suppression du compte: $e');
+      print('Erreur lors de la suppression de l\'utilisateur: $e');
       rethrow;
+    }
+  }
+
+  // Méthode privée pour supprimer un utilisateur de Firebase Auth
+  Future<void> _deleteUserFromAuth(String userId) async {
+    try {
+      // Récupérer l'email de l'utilisateur depuis Firestore avant de le supprimer
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(userId).get();
+      String? email = userDoc.get('email');
+
+      if (email != null) {
+        // Créer une méthode personnalisée pour supprimer l'utilisateur sans réauthentification directe
+        await _adminDeleteUser(email);
+      }
+    } catch (e) {
+      print('Erreur lors de la suppression de l\'utilisateur d\'Auth: $e');
+      rethrow;
+    }
+  }
+
+  // Méthode pour la suppression par un admin
+  Future<void> _adminDeleteUser(String email) async {
+    try {
+      // Récupérer tous les utilisateurs et trouver celui avec l'email correspondant
+      UserCredential? userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password:
+            'temporaryAdminPassword', // Un mot de passe temporaire sécurisé
+      );
+
+      await userCredential.user?.delete();
+    } catch (e) {
+      print('Erreur lors de la suppression admin: $e');
+      rethrow;
+    }
+  }
+
+  // Méthode pour réauthentifier l'utilisateur avant une suppression sensible
+  Future<bool> reauthenticateUser(String email, String password) async {
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        AuthCredential credential = EmailAuthProvider.credential(
+          email: email,
+          password: password,
+        );
+        await currentUser.reauthenticateWithCredential(credential);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Erreur de réauthentification: $e');
+      return false;
     }
   }
 

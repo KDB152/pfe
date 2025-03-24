@@ -644,61 +644,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _deleteAccount() async {
-    // Demander confirmation
-    bool confirmDelete = await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Confirmer la suppression'),
-          content: Text(
-            'Êtes-vous sûr de vouloir supprimer votre compte?\n\nCette action est irréversible et supprimera définitivement toutes vos données.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text('Annuler'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: Text('Supprimer'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmDelete == true) {
-      try {
-        // Afficher un indicateur de chargement
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return Dialog(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Colors.deepOrange),
-                    SizedBox(height: 16),
-                    Text('Suppression du compte en cours...'),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-
-        // Obtenir l'ID de l'utilisateur actuel
-        final currentUser = _authService.getCurrentUser();
-        if (currentUser != null) {
-          await _authService.deleteUser(currentUser.uid);
-        }
-
-        // Fermer le dialogue de chargement
-        Navigator.of(context).pop();
+    try {
+      // Obtenir l'ID de l'utilisateur actuel
+      final currentUser = _authService.getCurrentUser();
+      if (currentUser != null) {
+        // Utiliser la nouvelle méthode deleteUser qui gère Firestore et Authentication
+        await _authService.deleteUser(currentUser.uid);
 
         // Rediriger vers l'écran de connexion
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
@@ -709,17 +660,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             backgroundColor: Colors.green,
           ),
         );
-      } catch (e) {
-        // Fermer le dialogue de chargement en cas d'erreur
-        Navigator.of(context).pop();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors de la suppression: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la suppression: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }
