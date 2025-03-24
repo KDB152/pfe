@@ -279,7 +279,7 @@ class AuthService {
 
       // 2. Supprimer l'utilisateur de Firebase Authentication
       User? currentUser = _auth.currentUser;
-      if (currentUser != null && currentUser.uid == userId) {
+      if (currentUser != null) {
         // Si c'est l'utilisateur actuellement connecté
         await currentUser.delete();
       } else {
