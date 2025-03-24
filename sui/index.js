@@ -1,45 +1,50 @@
-const {onRequest} = require("firebase-functions/v2/https");
-const logger = require("firebase-functions/logger");
+// functions/index.js
 
-// Fichier à créer dans votre projet Firebase Cloud Functions
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
-exports.deleteUserAuth = functions.https.onCall(async (data, context) => {
-  // Vérifier si la requête provient d'un admin
+// Fonction pour supprimer un utilisateur Firebase Auth (admin seulement)
+exports.deleteUser = functions.https.onCall(async (data, context) => {
+  // Vérifier si l'appelant est authentifié
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'Vous devez être connecté pour effectuer cette action.'
+    );
+  }
+
+  // Vérifier si l'appelant est un admin
   const callerUid = context.auth.uid;
-  const callerData = await admin.firestore().collection('users').doc(callerUid).get();
+  const callerRef = admin.firestore().collection('users').doc(callerUid);
+  const callerDoc = await callerRef.get();
   
-  if (!callerData.exists || !callerData.data().isAdmin) {
+  if (!callerDoc.exists || !callerDoc.data().isAdmin) {
     throw new functions.https.HttpsError(
       'permission-denied',
-      'Seuls les administrateurs peuvent supprimer des comptes utilisateurs.'
+      'Seuls les administrateurs peuvent supprimer des utilisateurs.'
     );
   }
 
   // Vérifier que l'UID à supprimer a été fourni
-  if (!data.uid) {
+  const uid = data.uid;
+  if (!uid) {
     throw new functions.https.HttpsError(
       'invalid-argument',
-      'L\'UID de l\'utilisateur à supprimer est requis.'
+      'L\'identifiant utilisateur (uid) est requis.'
     );
   }
 
   try {
-    // Supprimer l'utilisateur de Firebase Authentication
-    await admin.auth().deleteUser(data.uid);
+    // Supprimer l'utilisateur de Firebase Auth
+    await admin.auth().deleteUser(uid);
     
-    // Vous pouvez aussi ajouter ici d'autres opérations de nettoyage
-    // comme supprimer les données associées à cet utilisateur dans d'autres collections
-    
-    return { success: true };
+    return { success: true, message: "Utilisateur supprimé avec succès" };
   } catch (error) {
-    console.error('Erreur lors de la suppression de l\'utilisateur:', error);
+    console.error("Erreur lors de la suppression de l'utilisateur:", error);
     throw new functions.https.HttpsError(
       'internal',
-      'Erreur lors de la suppression de l\'utilisateur.',
-      error
+      `Erreur lors de la suppression de l'utilisateur: ${error.message}`
     );
   }
 });

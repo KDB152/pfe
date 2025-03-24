@@ -251,6 +251,22 @@ class AuthService {
     }
   }
 
+  Future<void> deleteCurrentUserAccount() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user == null) throw Exception("Aucun utilisateur connecté");
+
+      // Supprimer d'abord les données Firestore
+      await _firestore.collection('users').doc(user.uid).delete();
+
+      // Puis supprimer le compte Auth
+      await user.delete();
+    } catch (e) {
+      print('Erreur lors de la suppression du compte: $e');
+      rethrow;
+    }
+  }
+
   // Supprimer les identifiants sauvegardés
   Future<void> clearSavedCredentials() async {
     try {

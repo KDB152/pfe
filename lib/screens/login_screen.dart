@@ -9,6 +9,7 @@ import '../screens/register_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/disabled_screen.dart';
 import '../screens/verify_email_screen.dart';
+import '../services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -86,40 +87,58 @@ class _LoginScreenState extends State<LoginScreen> {
         await _saveUserEmailPassword();
 
         try {
-          final userCredential = await _authService.signInWithEmailAndPassword(
+          // Connexion
+          UserCredential result = await _authService.signInWithEmailAndPassword(
             _emailController.text.trim(),
-            _passwordController.text.trim(),
+            _passwordController.text,
           );
 
-          // Vérifier si le compte est actif
-          bool isActive = await _authService.isUserActive(
-            userCredential.user!.uid,
+          // Vérifier si le compte a été marqué comme supprimé
+          UserService _userService = UserService();
+          bool isDeleted = await _userService.checkIfUserDeleted(
+            result.user!.uid,
           );
 
-          if (!isActive) {
-            // Si le compte est désactivé, rediriger vers l'écran de compte désactivé
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => DisabledScreen()),
-            );
+          if (isDeleted) {
+            // Le compte a été supprimé par un admin
+            // Déconnecter l'utilisateur
+            await _authService.signOut();
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Ce compte a été supprimé par un administrateur',
+                  ),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
             return;
           }
 
-          // Vérifier si l'email est vérifié
-          if (userCredential.user != null &&
-              !userCredential.user!.emailVerified) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => VerifyEmailScreen()),
-            );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder:
-                    (context) => HomeScreen(userEmail: _emailController.text),
-              ),
-            );
+          // Vérifier si le compte est actif
+          bool isActive = await _authService.isUserActive(result.user!.uid);
+          if (!isActive) {
+            // Déconnecter l'utilisateur si son compte est désactivé
+            await _authService.signOut();
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Votre compte a été désactivé par un administrateur',
+                  ),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+
+          // Si tout est OK, rediriger vers l'accueil
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/home');
           }
         } on FirebaseAuthException catch (e) {
           setState(() {

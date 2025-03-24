@@ -75,9 +75,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   var userEmail = FirebaseAuth.instance.currentUser?.email;
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => HomeScreen(userEmail: userEmail!),
-                    ),
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
                   );
                 } catch (e) {
                   if (mounted) {

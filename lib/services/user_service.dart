@@ -1,9 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:cloud_functions/cloud_functions.dart';
 
 class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -131,26 +128,73 @@ class UserService {
   }
 
   // Supprimer un utilisateur
+  Future<bool> deleteUser(String uid) async {
+    try {
+      await _firestore.collection(_collection).doc(uid).delete();
+      return true;
+    } catch (e) {
+      print('Erreur lors de la suppression de l\'utilisateur: $e');
+      return false;
+    }
+  }
 
+  // Méthode pour supprimer complètement un utilisateur (Auth + Firestore)
   Future<void> deleteUserCompletely(String userId) async {
     try {
-      // Supprimer l'utilisateur de Firestore
-      await FirebaseFirestore.instance.collection('users').doc(userId).delete();
+      // 1. Récupérer les données de l'utilisateur depuis Firestore avant suppression
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(userId).get();
 
-      // Supprimer l'utilisateur de Firebase Authentication
-      // Cela doit être fait via une fonction Cloud ou par l'utilisateur lui-même
-      // car un admin ne peut pas directement supprimer un compte utilisateur via le SDK client
+      if (!userDoc.exists) {
+        throw Exception("L'utilisateur n'existe pas");
+      }
 
-      // Appel à votre fonction Cloud Firebase dédiée
-      final callable = FirebaseFunctions.instance.httpsCallable(
-        'deleteUserAuth',
-      );
-      await callable.call({'uid': userId});
+      // 2. Si l'utilisateur courant est l'admin qui supprime un autre utilisateur
+      User? currentUser = _auth.currentUser;
 
-      return;
+      if (currentUser != null && currentUser.uid == userId) {
+        // L'utilisateur supprime son propre compte
+        // Supprimer les données Firestore d'abord
+        await _firestore.collection('users').doc(userId).delete();
+
+        // Puis supprimer le compte Auth
+        await currentUser.delete();
+      } else {
+        // Un admin supprime un autre utilisateur
+        // Nous devons utiliser une approche différente car nous ne pouvons pas
+        // supprimer directement un autre utilisateur avec Firebase Auth
+
+        // 1. Supprimer d'abord les données Firestore
+        await _firestore.collection('users').doc(userId).delete();
+
+        // 2. Pour Firebase Auth, nous allons devoir modifier les permissions dans Firebase Console
+        // et utiliser l'Admin SDK dans un backend, mais comme demandé sans Cloud Functions,
+        // nous allons désactiver le compte en définissant un état dans Firestore
+
+        // Noter que l'utilisateur pourra toujours se connecter à Firebase Auth,
+        // mais nous vérifierons son statut dans Firestore à chaque connexion
+
+        // Créer un document dans une collection de suivi des comptes supprimés
+        await _firestore.collection('deleted_users').doc(userId).set({
+          'deletedAt': FieldValue.serverTimestamp(),
+          'deletedBy': currentUser?.uid ?? 'Unknown',
+        });
+      }
     } catch (e) {
-      print('Erreur lors de la suppression complète: $e');
-      throw e;
+      print('Erreur lors de la suppression complète du compte: $e');
+      rethrow;
+    }
+  }
+
+  // Méthode pour vérifier si l'utilisateur a été supprimé par un admin
+  Future<bool> checkIfUserDeleted(String userId) async {
+    try {
+      DocumentSnapshot deletedDoc =
+          await _firestore.collection('deleted_users').doc(userId).get();
+      return deletedDoc.exists;
+    } catch (e) {
+      print('Erreur lors de la vérification du statut de suppression: $e');
+      return false;
     }
   }
 }

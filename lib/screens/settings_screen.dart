@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../screens/login_screen.dart';
+import '../services/user_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String email;
@@ -81,63 +82,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildDangerZone() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Contrôle du compte',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color.fromARGB(255, 0, 0, 0),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(
-              color: Color.fromARGB(255, 170, 100, 5),
-              width: 1,
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Zone Dangereuse',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
             ),
-          ),
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Supprimer le compte',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Color.fromARGB(255, 255, 0, 0),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Cette action est irréversible et supprimera toutes vos données.',
-                  style: TextStyle(color: Color.fromARGB(255, 75, 70, 70)),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    _showDeleteAccountDialog();
-                  },
-                  icon: const Icon(Icons.delete_forever),
-                  label: const Text('Supprimer mon compte'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 240, 115, 65),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 48),
-                  ),
-                ),
-              ],
+            SizedBox(height: 8),
+            Text(
+              'La suppression de votre compte est irréversible. Toutes vos données seront définitivement perdues.',
+              style: TextStyle(color: Colors.grey[700]),
             ),
-          ),
+            SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _deleteAccount,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text('Supprimer mon compte'),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -615,7 +596,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         // Supprimer les données associées
         if (user.uid.isNotEmpty) {
-          await deleteAccount(user.uid);
+          await _deleteAccount();
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -662,17 +643,92 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  static Future<void> deleteAccount(String uid) async {
-    try {
-      // Cette partie serait dans votre Cloud Function Firebase
-      User? user = FirebaseAuth.instance.currentUser;
+  Future<void> _deleteAccount() async {
+    final AuthService _authService = AuthService();
+    final UserService _userService = UserService();
 
-      if (user != null && user.uid == uid) {
-        await user.delete();
+    // Afficher une boîte de dialogue de confirmation
+    bool confirmDelete = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirmer la suppression du compte'),
+          content: Text(
+            'Êtes-vous sûr de vouloir supprimer votre compte ?\n\nCette action est irréversible et vous perdrez définitivement toutes vos données.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text('Supprimer mon compte'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Si l'utilisateur a confirmé la suppression
+    if (confirmDelete == true) {
+      try {
+        // Afficher un indicateur de chargement
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return Dialog(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.deepOrange),
+                    SizedBox(height: 16),
+                    Text('Suppression du compte en cours...'),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+
+        // Récupérer l'utilisateur courant
+        User? currentUser = _authService.getCurrentUser();
+        if (currentUser == null) {
+          throw Exception("Aucun utilisateur connecté");
+        }
+
+        // Supprimer l'utilisateur complètement
+        await _userService.deleteUserCompletely(currentUser.uid);
+
+        // Fermer le dialogue de chargement
+        Navigator.of(context).pop();
+
+        // Déconnexion et redirection vers l'écran de login
+        await _authService.signOut();
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+
+        // Afficher un message de confirmation
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Votre compte a été supprimé avec succès'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        // Fermer le dialogue de chargement en cas d'erreur
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la suppression du compte: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    } catch (e) {
-      print('Erreur lors de la suppression du compte !!');
-      rethrow;
     }
   }
 }
