@@ -154,8 +154,10 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
             DrawerHeader(
               decoration: BoxDecoration(color: Colors.deepOrange),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment:
+                    CrossAxisAlignment.center, // Centrer horizontalement
+                mainAxisAlignment:
+                    MainAxisAlignment.center, // Centrer verticalement
                 children: [
                   CircleAvatar(
                     backgroundColor: Colors.white,
@@ -264,11 +266,13 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.message_outlined, size: 64, color: Colors.grey),
+                  Icon(Icons.message_outlined, size: 80, color: Colors.grey),
                   SizedBox(height: 16),
-                  Text('Aucun commentaire trouvé'),
-                  SizedBox(height: 8),
-                  Text('Il n\'y a aucun commentaire dans cette catégorie'),
+                  Text(
+                    'Aucun commentaire trouvé \n pour le moment',
+                    style: TextStyle(fontSize: 20),
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             );
