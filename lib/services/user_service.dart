@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -128,13 +131,26 @@ class UserService {
   }
 
   // Supprimer un utilisateur
-  Future<bool> deleteUser(String uid) async {
+
+  Future<void> deleteUserCompletely(String userId) async {
     try {
-      await _firestore.collection(_collection).doc(uid).delete();
-      return true;
+      // Supprimer l'utilisateur de Firestore
+      await FirebaseFirestore.instance.collection('users').doc(userId).delete();
+
+      // Supprimer l'utilisateur de Firebase Authentication
+      // Cela doit être fait via une fonction Cloud ou par l'utilisateur lui-même
+      // car un admin ne peut pas directement supprimer un compte utilisateur via le SDK client
+
+      // Appel à votre fonction Cloud Firebase dédiée
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'deleteUserAuth',
+      );
+      await callable.call({'uid': userId});
+
+      return;
     } catch (e) {
-      print('Erreur lors de la suppression de l\'utilisateur: $e');
-      return false;
+      print('Erreur lors de la suppression complète: $e');
+      throw e;
     }
   }
 }

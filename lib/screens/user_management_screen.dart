@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'package:intl/intl.dart';
 import '../screens/login_screen.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import '../services/user_service.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({Key? key}) : super(key: key);
@@ -12,6 +14,7 @@ class UserManagementScreen extends StatefulWidget {
 }
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
+  final UserService _userService = UserService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService();
   bool _isAdmin = false;
@@ -79,6 +82,85 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       if (isAdmin && isActive) {
         // Déconnexion et redirection vers l'écran de login
         await _authService.signOut();
+      }
+    }
+  }
+
+  Future<void> _deleteUser(String userId, String username) async {
+    // Afficher une boîte de dialogue de confirmation
+    bool confirmDelete = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirmer la suppression'),
+          content: Text(
+            'Êtes-vous sûr de vouloir supprimer l\'utilisateur "$username" ?\n\nCette action est irréversible et supprimera définitivement le compte.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text('Supprimer'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Si l'utilisateur a confirmé la suppression
+    if (confirmDelete == true) {
+      try {
+        // Afficher un indicateur de chargement
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return Dialog(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.deepOrange),
+                    SizedBox(height: 16),
+                    Text('Suppression du compte en cours...'),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+
+        // Supprimer l'utilisateur complètement
+        await _userService.deleteUserCompletely(userId);
+
+        // Fermer le dialogue de chargement
+        if (mounted) Navigator.of(context).pop();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Utilisateur supprimé avec succès'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        // Fermer le dialogue de chargement en cas d'erreur
+        if (mounted) Navigator.of(context).pop();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur lors de la suppression: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -334,6 +416,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                   _toggleUserActive(userId, isActive, isAdmin),
                           tooltip: isActive ? 'Désactiver' : 'Activer',
                         ),
+                      // Ajouter le bouton de suppression
+                      if (!isCurrentUser)
+                        IconButton(
+                          icon: Icon(Icons.delete_forever, color: Colors.red),
+                          onPressed: () => _deleteUser(userId, username),
+                          tooltip: 'Supprimer',
+                        ),
                     ],
                   ),
                   children: [
@@ -406,6 +495,28 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                   child: Text('Révoquer Admin'),
                                 ),
                               SizedBox(width: 8),
+                              // Ajouter le bouton de suppression
+                              if (!isCurrentUser)
+                                ElevatedButton(
+                                  onPressed:
+                                      () => _deleteUser(userId, username),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 12,
+                                    ),
+                                    minimumSize: Size(140, 45),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.delete_forever, size: 18),
+                                      SizedBox(width: 8),
+                                      Text('Supprimer'),
+                                    ],
+                                  ),
+                                ),
                             ],
                           ),
                         ],
