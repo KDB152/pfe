@@ -203,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Center(
                             child: Icon(
                               Icons.local_fire_department,
-                              color: Colors.deepOrange,
+                              color: const Color.fromARGB(255, 255, 0, 0),
                               size: 70,
                             ),
                           ),
@@ -222,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           'Restez en sécurité grâce à la détection des incendies ',
                           style: TextStyle(
                             fontSize: 14,
-                            color: const Color.fromARGB(255, 49, 45, 45),
+                            color: const Color.fromARGB(255, 133, 131, 131),
                           ),
                         ),
                       ],
@@ -290,7 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               },
                             ),
                           ),
-                          SizedBox(width: 8),
+                          SizedBox(width: 10),
                           Text('Se mémoriser'),
                         ],
                       ),
@@ -305,7 +305,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                         child: Text(
                           'Mot de passe oublié ?',
-                          style: TextStyle(color: Colors.deepOrange),
+                          style: TextStyle(
+                            color: const Color.fromARGB(255, 255, 255, 255),
+                          ),
                         ),
                       ),
                     ],
@@ -347,7 +349,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                         child: Text(
                           'Créer un compte',
-                          style: TextStyle(color: Colors.deepOrange),
+                          style: TextStyle(
+                            color: const Color.fromARGB(255, 255, 255, 255),
+                          ),
                         ),
                       ),
                     ],

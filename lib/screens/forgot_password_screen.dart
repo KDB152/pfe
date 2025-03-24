@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
 import '../services/user_service.dart';
+import '../widgets/fire_detection_background.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -92,70 +93,72 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(height: 24),
+      body: FireDetectionBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(height: 24),
 
-                // Titre
-                Text(
-                  'Réinitialiser votre mot de passe',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 16),
-
-                // Instructions
-                Text(
-                  'Entrez votre adresse e-mail pour recevoir un lien de réinitialisation du mot de passe.',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                ),
-                SizedBox(height: 32),
-
-                // Email input
-                CustomTextField(
-                  controller: _emailController,
-                  label: 'E-mail',
-                  hint: 'Entrez votre adresse e-mail',
-                  prefixIcon: Icons.email_outlined,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Veuillez entrer votre e-mail';
-                    }
-                    if (!RegExp(
-                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                    ).hasMatch(value)) {
-                      return 'Veuillez entrer un e-mail valide';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 32),
-
-                // Message
-                if (_message.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: Text(
-                      _message,
-                      style: TextStyle(
-                        color: _isSuccess ? Colors.green : Colors.red,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                  // Titre
+                  Text(
+                    'Réinitialiser votre mot de passe',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
+                  SizedBox(height: 16),
 
-                // Reset button
-                CustomButton(
-                  text: 'REINITIALISER VOTRE MOT DE PASSE',
-                  isLoading: _isLoading,
-                  onPressed: _resetPassword,
-                ),
-              ],
+                  // Instructions
+                  Text(
+                    'Entrez votre adresse e-mail pour recevoir un lien de réinitialisation du mot de passe.',
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  ),
+                  SizedBox(height: 32),
+
+                  // Email input
+                  CustomTextField(
+                    controller: _emailController,
+                    label: 'E-mail',
+                    hint: 'Entrez votre adresse e-mail',
+                    prefixIcon: Icons.email_outlined,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Veuillez entrer votre e-mail';
+                      }
+                      if (!RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      ).hasMatch(value)) {
+                        return 'Veuillez entrer un e-mail valide';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: 32),
+
+                  // Message
+                  if (_message.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Text(
+                        _message,
+                        style: TextStyle(
+                          color: _isSuccess ? Colors.green : Colors.red,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+
+                  // Reset button
+                  CustomButton(
+                    text: 'REINITIALISER VOTRE MOT DE PASSE',
+                    isLoading: _isLoading,
+                    onPressed: _resetPassword,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

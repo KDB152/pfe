@@ -11,6 +11,7 @@ import '../widgets/admin_sidebar.dart';
 import '../screens/user_management_screen.dart';
 import '../screens/users_comments_screen.dart';
 import './help_screen.dart';
+import '../widgets/fire_detection_background.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userEmail;
@@ -184,32 +185,34 @@ class _HomeScreenState extends State<HomeScreen>
         backgroundColor: Colors.deepOrange,
       ),
       drawer: _buildDrawer(context),
-      body:
-          _isLoading
-              ? const Center(
-                child: CircularProgressIndicator(color: Colors.deepOrange),
-              )
-              : RefreshIndicator(
-                onRefresh: _loadSensorData,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildUserInfoCard(),
-                      const SizedBox(height: 20),
-                      _buildSensorDataCards(),
-                      const SizedBox(height: 20),
-                      _buildCharts(),
-                      const SizedBox(height: 20),
-                      _buildSystemStatusSection(),
-                      const SizedBox(height: 20),
-                      _buildRecentAlertsSection(),
-                    ],
+      body: FireDetectionBackground(
+        child:
+            _isLoading
+                ? const Center(
+                  child: CircularProgressIndicator(color: Colors.deepOrange),
+                )
+                : RefreshIndicator(
+                  onRefresh: _loadSensorData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildUserInfoCard(),
+                        const SizedBox(height: 20),
+                        _buildSensorDataCards(),
+                        const SizedBox(height: 20),
+                        _buildCharts(),
+                        const SizedBox(height: 20),
+                        _buildSystemStatusSection(),
+                        const SizedBox(height: 20),
+                        _buildRecentAlertsSection(),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+      ),
     );
   }
 
