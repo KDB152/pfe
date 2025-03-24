@@ -94,7 +94,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  Future<void> _deleteUser(String userId, String username) async {
+  Future<void> _deleteUser(String userIdToDelete, String username) async {
     bool confirmDelete = await showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -141,7 +141,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         );
 
         // Utiliser la nouvelle méthode deleteUser
-        await _authService.deleteUser(userId);
+        await _authService.deleteUser(userIdToDelete);
 
         // Fermer le dialogue de chargement
         if (mounted) Navigator.of(context).pop();

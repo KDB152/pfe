@@ -276,7 +276,6 @@ class AuthService {
     try {
       // 1. Supprimer le document utilisateur de Firestore
       await _firestore.collection('users').doc(userId).delete();
-
       // 2. Supprimer l'utilisateur de Firebase Authentication
       User? currentUser = _auth.currentUser;
       if (currentUser != null) {
@@ -290,16 +289,14 @@ class AuthService {
       print('Erreur lors de la suppression de l\'utilisateur: $e');
       rethrow;
     }
-  }
+  } // Méthode privée pour supprimer un utilisateur de Firebase Auth
 
-  // Méthode privée pour supprimer un utilisateur de Firebase Auth
   Future<void> _deleteUserFromAuth(String userId) async {
     try {
       // Récupérer l'email de l'utilisateur depuis Firestore avant de le supprimer
       DocumentSnapshot userDoc =
           await _firestore.collection('users').doc(userId).get();
       String? email = userDoc.get('email');
-
       if (email != null) {
         // Créer une méthode personnalisée pour supprimer l'utilisateur sans réauthentification directe
         await _adminDeleteUser(email);
@@ -316,33 +313,13 @@ class AuthService {
       // Récupérer tous les utilisateurs et trouver celui avec l'email correspondant
       UserCredential? userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
-        password:
-            'temporaryAdminPassword', // Un mot de passe temporaire sécurisé
+        password: 'temporaryAdminPassword',
+        // Un mot de passe temporaire sécurisé
       );
-
       await userCredential.user?.delete();
     } catch (e) {
       print('Erreur lors de la suppression admin: $e');
       rethrow;
-    }
-  }
-
-  // Méthode pour réauthentifier l'utilisateur avant une suppression sensible
-  Future<bool> reauthenticateUser(String email, String password) async {
-    try {
-      User? currentUser = _auth.currentUser;
-      if (currentUser != null) {
-        AuthCredential credential = EmailAuthProvider.credential(
-          email: email,
-          password: password,
-        );
-        await currentUser.reauthenticateWithCredential(credential);
-        return true;
-      }
-      return false;
-    } catch (e) {
-      print('Erreur de réauthentification: $e');
-      return false;
     }
   }
 
