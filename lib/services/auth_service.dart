@@ -76,6 +76,11 @@ class AuthService {
     return _auth.currentUser != null;
   }
 
+  String getCurrentUserEmail() {
+    final User? user = FirebaseAuth.instance.currentUser;
+    return user?.email ?? 'Email non disponible';
+  }
+
   User? getCurrentUser() {
     return _auth.currentUser;
   }
@@ -203,11 +208,6 @@ class AuthService {
         'lastLogin': FieldValue.serverTimestamp(),
       });
 
-      // Si le compte n'est pas actif, ajouter cette information à UserCredential
-      // en utilisant AdditionalUserInfo (pas directement possible)
-      // Nous allons plutôt gérer cela au niveau de l'écran de connexion
-
-      return result;
       return result;
     } catch (e) {
       print('E-mail et/ou mot de passe incorrect(s)');

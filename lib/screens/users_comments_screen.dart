@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'package:intl/intl.dart';
+import '../screens/home_screen.dart';
 
 class UsersCommentsScreen extends StatefulWidget {
   const UsersCommentsScreen({Key? key}) : super(key: key);
@@ -33,7 +34,14 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
 
     if (!isAdmin && mounted) {
       // Rediriger vers la page d'accueil si l'utilisateur n'est pas admin
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) =>
+                  HomeScreen(userEmail: _authService.getCurrentUserEmail()),
+        ),
+      );
     }
   }
 

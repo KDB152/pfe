@@ -34,7 +34,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _emailController.text = widget.email;
+    _emailController.text = _authService.getCurrentUserEmail();
   }
 
   @override

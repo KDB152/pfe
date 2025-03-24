@@ -574,7 +574,10 @@ class _HomeScreenState extends State<HomeScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => SettingsScreen(email: widget.userEmail),
+                  builder:
+                      (context) => SettingsScreen(
+                        email: _authService.getCurrentUserEmail(),
+                      ),
                 ),
               );
             },
@@ -695,7 +698,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   Text(
-                    widget.userEmail,
+                    _authService.getCurrentUserEmail(),
                     style: const TextStyle(color: Colors.grey),
                   ),
                 ],

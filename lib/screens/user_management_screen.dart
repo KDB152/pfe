@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../screens/login_screen.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../services/user_service.dart';
+import '../screens/home_screen.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({Key? key}) : super(key: key);
@@ -41,7 +42,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     if (!isAdmin) {
       // Rediriger vers la page d'accueil si l'utilisateur n'est pas admin
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) =>
+                    HomeScreen(userEmail: _authService.getCurrentUserEmail()),
+          ),
+        );
       }
     }
   }

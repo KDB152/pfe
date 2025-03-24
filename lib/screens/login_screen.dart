@@ -139,7 +139,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // Si tout est OK, rediriger vers l'accueil
           if (mounted) {
-            Navigator.pushReplacementNamed(context, '/home');
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (context) => HomeScreen(
+                      userEmail: _authService.getCurrentUserEmail(),
+                    ),
+              ),
+            );
           }
         } on FirebaseAuthException catch (e) {
           setState(() {
