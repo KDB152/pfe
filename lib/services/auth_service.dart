@@ -53,7 +53,7 @@ class AuthService {
           .createUserWithEmailAndPassword(email: email, password: password);
 
       // Vérifier si c'est l'email initial d'admin
-      bool isAdminUser = email == 'detecteurincendie7@gmail.com';
+      bool isAdminUser = (email == 'detecteurincendie7@gmail.com');
 
       // Ajouter les informations supplémentaires
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
@@ -82,36 +82,40 @@ class AuthService {
 
   // Inscription avec email et mot de passe
 
+  // Inscription d'un nouvel utilisateur
   Future<UserCredential> registerWithEmailAndPassword(
     String email,
     String password,
     String username,
   ) async {
     try {
+      // Créer l'utilisateur dans Firebase Auth
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
+      // Envoyer l'email de vérification
       await result.user!.sendEmailVerification();
 
+      // Sauvegarder les informations temporaires
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('pending_username', username);
       await prefs.setString('pending_email', email);
-      bool isAdminUser = email == 'detecteurincendie7@gmail.com';
-      // Créer un document correspondant dans Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(result.user!.uid)
-          .set({
-            'email': email,
-            'username': username,
-            'isActive': true,
-            'isApproved': isAdminUser, // À approuver par un admin
-            'isAdmin': isAdminUser,
-            'createdAt': FieldValue.serverTimestamp(),
-            'lastLogin': FieldValue.serverTimestamp(),
-          });
+
+      // Vérifier si c'est l'email admin
+      bool isAdminUser = (email == 'detecteurincendie7@gmail.com');
+
+      // Créer le document utilisateur dans Firestore
+      await _firestore.collection('users').doc(result.user!.uid).set({
+        'email': email,
+        'username': username,
+        'isActive': true,
+        'isApproved': isAdminUser,
+        'isAdmin': isAdminUser,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLogin': FieldValue.serverTimestamp(),
+      });
 
       return result;
     } catch (e) {
@@ -267,25 +271,25 @@ class AuthService {
     }
   }
 
+  // Suppression d'un utilisateur
   Future<void> deleteUser(String uid) async {
     try {
-      // Supprimer les données utilisateur de Firestore d'abord
+      // Supprimer les données utilisateur de Firestore
       await _firestore.collection('users').doc(uid).delete();
 
-      // Si c'est l'utilisateur actuel qui est supprimé
+      // Récupérer l'utilisateur courant
       User? currentUser = _auth.currentUser;
+
+      // Si c'est l'utilisateur actuel qui est supprimé
       if (currentUser != null && currentUser.uid == uid) {
-        // Supprimer le compte de Firebase Auth
+        // Supprimer le compte Firebase Auth
         await currentUser.delete();
         // Déconnexion après suppression
         await signOut();
       } else {
-        // Si c'est un admin qui supprime un autre utilisateur,
-        // nous devons utiliser une approche différente
-        // Comme nous ne pouvons pas utiliser Cloud Functions,
-        // nous ne pouvons supprimer que les données Firestore de l'utilisateur
-        // Le compte Firebase Auth restera, mais l'utilisateur ne pourra pas se connecter
-        // car ses données utilisateur n'existent plus
+        // Si c'est un admin qui supprime un autre utilisateur
+        // Notez que cette partie ne supprime que les données Firestore
+        // Le compte Firebase Auth restera, mais sans données utilisateur
       }
     } catch (e) {
       print('Erreur lors de la suppression du compte: $e');
