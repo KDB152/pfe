@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pfe/widgets/fire_detection_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../widgets/custom_text_field.dart';
@@ -178,176 +179,181 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(height: 20),
-                // Logo et titre
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: Colors.deepOrange.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            Icons.local_fire_department,
-                            color: Colors.deepOrange,
-                            size: 70,
+      body: FireDetectionBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(height: 20),
+                  // Logo et titre
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.deepOrange.shade50,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Icon(
+                              Icons.local_fire_department,
+                              color: Colors.deepOrange,
+                              size: 70,
+                            ),
                           ),
                         ),
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Détecteur Incendie',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.deepOrange,
+                        SizedBox(height: 16),
+                        Text(
+                          'Détecteur Incendie',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepOrange,
+                          ),
                         ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Restez en sécurité grâce à la détection des incendies ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: const Color.fromARGB(255, 49, 45, 45),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 40),
+
+                  // Titre de la page
+                  Text(
+                    'Se Connecter',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 24),
+
+                  // Formulaire
+                  CustomTextField(
+                    controller: _emailController,
+                    label: 'E-mail',
+                    hint: 'Entrer votre e-mail',
+                    prefixIcon: Icons.email_outlined,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Veuillez entrer votre email';
+                      }
+                      if (!RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      ).hasMatch(value)) {
+                        return 'Veuillez entrer un email valide';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: 16),
+                  CustomTextField(
+                    controller: _passwordController,
+                    label: 'Mot de passe',
+                    hint: 'Entrer votre mot de passe',
+                    prefixIcon: Icons.lock_outline,
+                    isPassword: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Veuillez entrer votre mot de passe';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: 8),
+
+                  // Remember me & Forgot Password
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Checkbox(
+                              value: _rememberMe,
+                              onChanged: (value) {
+                                setState(() {
+                                  _rememberMe = value!;
+                                });
+                              },
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text('Se mémoriser'),
+                        ],
                       ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Restez en sécurité grâce à la détection des incendies ',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ForgotPasswordScreen(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Mot de passe oublié ?',
+                          style: TextStyle(color: Colors.deepOrange),
+                        ),
                       ),
                     ],
                   ),
-                ),
+                  SizedBox(height: 24),
 
-                SizedBox(height: 40),
-
-                // Titre de la page
-                Text(
-                  'Se Connecter',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 24),
-
-                // Formulaire
-                CustomTextField(
-                  controller: _emailController,
-                  label: 'E-mail',
-                  hint: 'Entrer votre e-mail',
-                  prefixIcon: Icons.email_outlined,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Veuillez entrer votre email';
-                    }
-                    if (!RegExp(
-                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                    ).hasMatch(value)) {
-                      return 'Veuillez entrer un email valide';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16),
-                CustomTextField(
-                  controller: _passwordController,
-                  label: 'Mot de passe',
-                  hint: 'Entrer votre mot de passe',
-                  prefixIcon: Icons.lock_outline,
-                  isPassword: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Veuillez entrer votre mot de passe';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 8),
-
-                // Remember me & Forgot Password
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: Checkbox(
-                            value: _rememberMe,
-                            onChanged: (value) {
-                              setState(() {
-                                _rememberMe = value!;
-                              });
-                            },
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Text('Se mémoriser'),
-                      ],
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ForgotPasswordScreen(),
-                          ),
-                        );
-                      },
+                  // Error message
+                  if (_errorMessage.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
                       child: Text(
-                        'Mot de passe oublié ?',
-                        style: TextStyle(color: Colors.deepOrange),
+                        _errorMessage,
+                        style: TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
                       ),
                     ),
-                  ],
-                ),
-                SizedBox(height: 24),
 
-                // Error message
-                if (_errorMessage.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: Text(
-                      _errorMessage,
-                      style: TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
-                    ),
+                  // Login button
+                  CustomButton(
+                    text: 'SE CONNECTER',
+                    isLoading: _isLoading,
+                    onPressed: _login,
                   ),
+                  SizedBox(height: 24),
 
-                // Login button
-                CustomButton(
-                  text: 'SE CONNECTER',
-                  isLoading: _isLoading,
-                  onPressed: _login,
-                ),
-                SizedBox(height: 24),
-
-                // Register link
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text("Vous n'avez pas un compte ?"),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RegisterScreen(),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'Créer un compte',
-                        style: TextStyle(color: Colors.deepOrange),
+                  // Register link
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text("Vous n'avez pas un compte ?"),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RegisterScreen(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Créer un compte',
+                          style: TextStyle(color: Colors.deepOrange),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
