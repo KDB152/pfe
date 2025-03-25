@@ -7,10 +7,7 @@ import './settings_screen.dart';
 import '../services/auth_service.dart';
 import '../services/sensor_service.dart';
 import '../screens/login_screen.dart';
-import '../widgets/admin_sidebar.dart';
 import '../screens/user_management_screen.dart';
-import '../screens/users_comments_screen.dart';
-import './help_screen.dart';
 import '../widgets/fire_detection_background.dart';
 
 class HomeScreen extends StatefulWidget {
