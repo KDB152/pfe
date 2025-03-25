@@ -125,13 +125,9 @@ class _LoginScreenState extends State<LoginScreen> {
             await _authService.signOut();
 
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Votre compte a été désactivé par un administrateur',
-                  ),
-                  backgroundColor: Colors.red,
-                ),
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => DisabledScreen()),
               );
             }
             return;

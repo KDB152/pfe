@@ -51,6 +51,7 @@ dependencies:
   foundation: ^0.0.5
   cloud_functions: ^5.3.4
   fl_chart: ^0.65.0
+  flutter_rating_bar: ^4.0.1
 
 dev_dependencies:
   flutter_test:

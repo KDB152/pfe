@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'package:intl/intl.dart';
-import '../screens/login_screen.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '../services/user_service.dart';
 import '../screens/home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({Key? key}) : super(key: key);
@@ -22,11 +22,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   bool _isLoading = true;
   String _filterValue = 'Tous';
   String _currentUserId = '';
+  bool _hasUserRated = false;
+  double _averageRating = 0.0;
 
   @override
   void initState() {
     super.initState();
     _checkAdminStatus();
+    _fetchAverageRating();
+    _checkIfUserHasRated();
+    _fetchAverageRating();
   }
 
   Future<void> _checkAdminStatus() async {
@@ -64,6 +69,242 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         SnackBar(content: Text('Utilisateur approuvé avec succès')),
       );
     }
+  }
+
+  Future<void> _fetchCurrentUserData() async {
+    try {
+      // Assuming you're using Firebase Authentication
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser != null) {
+        // Fetch the current user's document from Firestore
+        DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(currentUser.uid).get();
+
+        if (userDoc.exists) {
+          setState(() {
+            _currentUserId = currentUser.uid;
+            _isAdmin = userDoc.get('isAdmin') ?? false;
+            _isLoading = false;
+          });
+        } else {
+          // Handle case where user document doesn't exist
+          setState(() {
+            _isLoading = false;
+          });
+          print('User document not found');
+        }
+      } else {
+        // No user is signed in
+        setState(() {
+          _isLoading = false;
+        });
+        // Optionally, redirect to login screen
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
+    } catch (e) {
+      print('Error fetching current user data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchAverageRating() async {
+    try {
+      var ratingSnapshot = await _firestore.collection('app_ratings').get();
+
+      if (ratingSnapshot.docs.isNotEmpty) {
+        double totalRating = 0.0;
+        int ratingCount = ratingSnapshot.docs.length;
+
+        for (var doc in ratingSnapshot.docs) {
+          totalRating += (doc.data()['rating'] as num?)?.toDouble() ?? 0.0;
+        }
+
+        setState(() {
+          _averageRating = totalRating / ratingCount;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _averageRating = 0.0;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching average rating: $e');
+      setState(() {
+        _averageRating = 0.0;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _checkIfUserHasRated() async {
+    try {
+      var currentUser = _authService.getCurrentUser();
+      if (currentUser != null) {
+        var ratingDoc =
+            await _firestore
+                .collection('app_ratings')
+                .where('userId', isEqualTo: currentUser.uid)
+                .get();
+
+        setState(() {
+          _hasUserRated = ratingDoc.docs.isNotEmpty;
+        });
+      }
+    } catch (e) {
+      print('Error checking user rating: $e');
+    }
+  }
+
+  Future<void> _rateApp(double rating) async {
+    try {
+      var currentUser = _authService.getCurrentUser();
+      if (currentUser != null) {
+        await _firestore.collection('app_ratings').add({
+          'userId': currentUser.uid,
+          'rating': rating,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        await _fetchAverageRating();
+
+        setState(() {
+          _hasUserRated = true;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Merci pour votre évaluation!')),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error rating app: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur lors de l\'évaluation')));
+      }
+    }
+  }
+
+  void _showRatingDialog() {
+    double selectedRating = 0.0;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Évaluer l\'application'),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Donnez votre note pour cette application'),
+                  SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return IconButton(
+                        icon: Icon(
+                          index < selectedRating
+                              ? Icons.star
+                              : Icons.star_border,
+                          color: Colors.amber,
+                          size: 40,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            selectedRating = index + 1.0;
+                          });
+                        },
+                      );
+                    }),
+                  ),
+                  SizedBox(height: 16),
+                  Text('Note: ${selectedRating.toStringAsFixed(1)}'),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              child: Text('Annuler'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              child: Text('Envoyer'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepOrange,
+              ),
+              onPressed: () async {
+                if (selectedRating > 0) {
+                  try {
+                    // Get current user ID
+                    User? currentUser = FirebaseAuth.instance.currentUser;
+                    if (currentUser == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Veuillez vous connecter')),
+                      );
+                      return;
+                    }
+
+                    // Save rating to Firestore
+                    await _firestore.collection('app_ratings').add({
+                      'userId': currentUser.uid,
+                      'rating': selectedRating,
+                      'timestamp': FieldValue.serverTimestamp(),
+                    });
+
+                    // Update local state
+                    setState(() {
+                      _hasUserRated = true;
+                    });
+
+                    // Refetch average rating
+                    await _fetchAverageRating();
+
+                    // Close dialog
+                    Navigator.of(context).pop();
+
+                    // Show success message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Merci pour votre évaluation !'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } catch (e) {
+                    // Handle errors
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Erreur lors de l\'envoi de la note'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } else {
+                  // Prompt to select a rating
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Veuillez sélectionner une note'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _toggleUserActive(
@@ -196,6 +437,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if loading or not admin
     if (_isLoading) {
       return Scaffold(
         body: Center(
@@ -226,6 +468,49 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         ),
       );
     }
+    // Create a rating section widget
+    Widget ratingSection = Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Text(
+                'Évaluation de l\'application',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _averageRating.toStringAsFixed(
+                      1,
+                    ), // Fixed the string interpolation
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(width: 8),
+                  Icon(Icons.star, color: Colors.amber, size: 30),
+                ],
+              ),
+              SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _hasUserRated ? null : _showRatingDialog,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                ),
+                child: Text(
+                  _hasUserRated ? 'Déjà évalué' : 'Évaluer l\'application',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -265,274 +550,302 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore.collection('users').snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            print('Erreur Firestore: ${snapshot.error}');
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  SizedBox(height: 16),
-                  Text('Une erreur est survenue'),
-                  SizedBox(height: 8),
-                  Text('Impossible de charger les utilisateurs'),
-                  SizedBox(height: 8),
-                  Text('Erreur: ${snapshot.error}'),
-                ],
-              ),
-            );
-          }
-
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: CircularProgressIndicator(color: Colors.deepOrange),
-            );
-          }
-
-          var users = snapshot.data!.docs;
-
-          // Filtrer les utilisateurs selon le critère sélectionné
-          var filteredUsers =
-              users.where((user) {
-                var userData = user.data() as Map<String, dynamic>;
-                var isActive = userData['isActive'] ?? true;
-                var isApproved = userData['isApproved'] ?? false;
-                var isAdmin = userData['isAdmin'] ?? false;
-                var email = userData['email'] ?? '';
-
-                // Vérification que l'utilisateur avec cet email apparaît dans la liste
-                // Décommenter cette ligne pour déboguer
-                // print('User email: $email, isActive: $isActive, isApproved: $isApproved, isAdmin: $isAdmin');
-
-                switch (_filterValue) {
-                  case 'Actifs':
-                    return isActive;
-                  case 'Inactifs':
-                    return !isActive;
-                  case 'EnAttente':
-                    return !isApproved;
-                  case 'Admins':
-                    return isAdmin;
-                  default:
-                    return true;
-                }
-              }).toList();
-
-          if (filteredUsers.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('Aucun utilisateur trouvé'),
-                  SizedBox(height: 8),
-                  Text('Il n\'y a aucun utilisateur dans cette catégorie'),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: filteredUsers.length,
-            itemBuilder: (context, index) {
-              var userData =
-                  filteredUsers[index].data() as Map<String, dynamic>;
-              var userId = filteredUsers[index].id;
-              var isActive = userData['isActive'] ?? true;
-              var isApproved = userData['isApproved'] ?? false;
-              var isAdmin = userData['isAdmin'] ?? false;
-              var email = userData['email'] ?? 'No email';
-              var username =
-                  userData['username'] ??
-                  (isAdmin ? 'Administrateur' : 'Utilisateur');
-              var createdAt = userData['createdAt'] as Timestamp?;
-              var lastLogin = userData['lastLogin'] as Timestamp?;
-
-              // Déterminer si c'est l'utilisateur actuel
-              bool isCurrentUser = userId == _currentUserId;
-
-              return Card(
-                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ExpansionTile(
-                  leading: CircleAvatar(
-                    backgroundColor:
-                        isActive
-                            ? (isAdmin ? Colors.blue : Colors.green)
-                            : Colors.red,
-                    child: Icon(
-                      isAdmin ? Icons.admin_panel_settings : Icons.person,
-                      color: Colors.white,
+      body: Column(
+        children: [
+          ratingSection,
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore.collection('users').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  print('Erreur Firestore: ${snapshot.error}');
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        SizedBox(height: 16),
+                        Text('Une erreur est survenue'),
+                        SizedBox(height: 8),
+                        Text('Impossible de charger les utilisateurs'),
+                        SizedBox(height: 8),
+                        Text('Erreur: ${snapshot.error}'),
+                      ],
                     ),
-                  ),
-                  title: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          username,
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: CircularProgressIndicator(color: Colors.deepOrange),
+                  );
+                }
+
+                var users = snapshot.data!.docs;
+
+                // Filtrer les utilisateurs selon le critère sélectionné
+                var filteredUsers =
+                    users.where((user) {
+                      var userData = user.data() as Map<String, dynamic>;
+                      var isActive = userData['isActive'] ?? true;
+                      var isApproved = userData['isApproved'] ?? false;
+                      var isAdmin = userData['isAdmin'] ?? false;
+                      var email = userData['email'] ?? '';
+
+                      // Vérification que l'utilisateur avec cet email apparaît dans la liste
+                      // Décommenter cette ligne pour déboguer
+                      // print('User email: $email, isActive: $isActive, isApproved: $isApproved, isAdmin: $isAdmin');
+
+                      switch (_filterValue) {
+                        case 'Actifs':
+                          return isActive;
+                        case 'Inactifs':
+                          return !isActive;
+                        case 'EnAttente':
+                          return !isApproved;
+                        case 'Admins':
+                          return isAdmin;
+                        default:
+                          return true;
+                      }
+                    }).toList();
+
+                if (filteredUsers.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline,
+                          size: 64,
+                          color: Colors.grey,
                         ),
+                        SizedBox(height: 16),
+                        Text('Aucun utilisateur trouvé'),
+                        SizedBox(height: 8),
+                        Text(
+                          'Il n\'y a aucun utilisateur dans cette catégorie',
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: filteredUsers.length,
+                  itemBuilder: (context, index) {
+                    var userData =
+                        filteredUsers[index].data() as Map<String, dynamic>;
+                    var userId = filteredUsers[index].id;
+                    var isActive = userData['isActive'] ?? true;
+                    var isApproved = userData['isApproved'] ?? false;
+                    var isAdmin = userData['isAdmin'] ?? false;
+                    var email = userData['email'] ?? 'No email';
+                    var username =
+                        userData['username'] ??
+                        (isAdmin ? 'Administrateur' : 'Utilisateur');
+                    var createdAt = userData['createdAt'] as Timestamp?;
+                    var lastLogin = userData['lastLogin'] as Timestamp?;
+
+                    // Déterminer si c'est l'utilisateur actuel
+                    bool isCurrentUser = userId == _currentUserId;
+
+                    return Card(
+                      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      if (isCurrentUser)
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
+                      child: ExpansionTile(
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              isActive
+                                  ? (isAdmin ? Colors.blue : Colors.green)
+                                  : Colors.red,
+                          child: Icon(
+                            isAdmin ? Icons.admin_panel_settings : Icons.person,
+                            color: Colors.white,
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.deepOrange.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Vous',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.deepOrange,
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                username,
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                             ),
-                          ),
+                            if (isCurrentUser)
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.deepOrange.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'Vous',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.deepOrange,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
-                  subtitle: Text(email),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!isApproved && !isCurrentUser)
-                        IconButton(
-                          icon: Icon(Icons.check_circle, color: Colors.green),
-                          onPressed: () => _approveUser(userId),
-                          tooltip: 'Approuver',
+                        subtitle: Text(email),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (!isApproved && !isCurrentUser)
+                              IconButton(
+                                icon: Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
+                                ),
+                                onPressed: () => _approveUser(userId),
+                                tooltip: 'Approuver',
+                              ),
+                            if (!isCurrentUser)
+                              IconButton(
+                                icon: Icon(
+                                  isActive ? Icons.block : Icons.check_circle,
+                                  color: isActive ? Colors.red : Colors.green,
+                                ),
+                                onPressed:
+                                    () => _toggleUserActive(
+                                      userId,
+                                      isActive,
+                                      isAdmin,
+                                    ),
+                                tooltip: isActive ? 'Désactiver' : 'Activer',
+                              ),
+                            // Ajouter le bouton de suppression
+                            if (!isCurrentUser)
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete_forever,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () => _deleteUser(userId, username),
+                                tooltip: 'Supprimer',
+                              ),
+                          ],
                         ),
-                      if (!isCurrentUser)
-                        IconButton(
-                          icon: Icon(
-                            isActive ? Icons.block : Icons.check_circle,
-                            color: isActive ? Colors.red : Colors.green,
-                          ),
-                          onPressed:
-                              () =>
-                                  _toggleUserActive(userId, isActive, isAdmin),
-                          tooltip: isActive ? 'Désactiver' : 'Activer',
-                        ),
-                      // Ajouter le bouton de suppression
-                      if (!isCurrentUser)
-                        IconButton(
-                          icon: Icon(Icons.delete_forever, color: Colors.red),
-                          onPressed: () => _deleteUser(userId, username),
-                          tooltip: 'Supprimer',
-                        ),
-                    ],
-                  ),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 8.0,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Divider(),
-                          _buildInfoRow('UID', userId),
-                          _buildInfoRow(
-                            'Date de création',
-                            _formatDate(createdAt),
-                          ),
-                          _buildInfoRow(
-                            'Dernière connexion',
-                            _formatDate(lastLogin),
-                          ),
-                          _buildInfoRow(
-                            'Statut',
-                            isApproved
-                                ? 'Approuvé'
-                                : 'En attente d\'approbation',
-                            textColor:
-                                isApproved ? Colors.green : Colors.orange,
-                          ),
-                          _buildInfoRow(
-                            'Compte',
-                            isActive ? 'Actif' : 'Désactivé',
-                            textColor: isActive ? Colors.green : Colors.red,
-                          ),
-                          _buildInfoRow(
-                            'Rôle',
-                            isAdmin ? 'Administrateur' : 'Utilisateur',
-                            textColor: isAdmin ? Colors.blue : Colors.black,
-                          ),
-                          SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              if (!isCurrentUser && !isAdmin)
-                                ElevatedButton(
-                                  onPressed:
-                                      () => _setAdminStatus(userId, true),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 12,
-                                    ),
-                                    minimumSize: Size(140, 45),
-                                  ),
-                                  child: Text('Promouvoir Admin'),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                              vertical: 8.0,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Divider(),
+                                _buildInfoRow('UID', userId),
+                                _buildInfoRow(
+                                  'Date de création',
+                                  _formatDate(createdAt),
                                 ),
-                              if (!isCurrentUser && isAdmin)
-                                ElevatedButton(
-                                  onPressed:
-                                      () => _setAdminStatus(userId, false),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.grey,
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 12,
-                                    ),
-                                    minimumSize: Size(140, 45),
-                                  ),
-                                  child: Text('Révoquer Admin'),
+                                _buildInfoRow(
+                                  'Dernière connexion',
+                                  _formatDate(lastLogin),
                                 ),
-                              SizedBox(width: 8),
-                              // Ajouter le bouton de suppression
-                              if (!isCurrentUser)
-                                ElevatedButton(
-                                  onPressed:
-                                      () => _deleteUser(userId, username),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 12,
-                                    ),
-                                    minimumSize: Size(140, 45),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.delete_forever, size: 18),
-                                      SizedBox(width: 8),
-                                      Text('Supprimer'),
-                                    ],
-                                  ),
+                                _buildInfoRow(
+                                  'Statut',
+                                  isApproved
+                                      ? 'Approuvé'
+                                      : 'En attente d\'approbation',
+                                  textColor:
+                                      isApproved ? Colors.green : Colors.orange,
                                 ),
-                            ],
+                                _buildInfoRow(
+                                  'Compte',
+                                  isActive ? 'Actif' : 'Désactivé',
+                                  textColor:
+                                      isActive ? Colors.green : Colors.red,
+                                ),
+                                _buildInfoRow(
+                                  'Rôle',
+                                  isAdmin ? 'Administrateur' : 'Utilisateur',
+                                  textColor:
+                                      isAdmin ? Colors.blue : Colors.black,
+                                ),
+                                SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    if (!isCurrentUser && !isAdmin)
+                                      ElevatedButton(
+                                        onPressed:
+                                            () => _setAdminStatus(userId, true),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.blue,
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 12,
+                                          ),
+                                          minimumSize: Size(140, 45),
+                                        ),
+                                        child: Text('Promouvoir Admin'),
+                                      ),
+                                    if (!isCurrentUser && isAdmin)
+                                      ElevatedButton(
+                                        onPressed:
+                                            () =>
+                                                _setAdminStatus(userId, false),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.grey,
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 12,
+                                          ),
+                                          minimumSize: Size(140, 45),
+                                        ),
+                                        child: Text('Révoquer Admin'),
+                                      ),
+                                    SizedBox(width: 8),
+                                    // Ajouter le bouton de suppression
+                                    if (!isCurrentUser)
+                                      ElevatedButton(
+                                        onPressed:
+                                            () => _deleteUser(userId, username),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 12,
+                                          ),
+                                          minimumSize: Size(140, 45),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.delete_forever,
+                                              size: 18,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('Supprimer'),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
