@@ -151,6 +151,13 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
       appBar: AppBar(
         title: Text('Commentaires des Utilisateurs'),
         backgroundColor: Colors.deepOrange,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: const Color.fromARGB(215, 255, 255, 255),
+          ),
+          onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+        ),
         actions: [
           // Vos actions existantes
         ],

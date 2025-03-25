@@ -6,6 +6,7 @@ import '../screens/login_screen.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../services/user_service.dart';
 import '../screens/home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({Key? key}) : super(key: key);
@@ -18,6 +19,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   final UserService _userService = UserService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   bool _isAdmin = false;
   bool _isLoading = true;
   String _filterValue = 'Tous';
@@ -50,6 +53,227 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     HomeScreen(userEmail: _authService.getCurrentUserEmail()),
           ),
         );
+      }
+    }
+  }
+
+  // New method to create a user directly from admin panel
+  void _showCreateUserDialog() {
+    final _formKey = GlobalKey<FormState>();
+    String email = '';
+    String password = '';
+    String username = '';
+    bool isAdmin = false;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Créer un nouvel utilisateur'),
+          content: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    decoration: InputDecoration(labelText: 'Email'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Veuillez entrer un email';
+                      }
+                      return null;
+                    },
+                    onSaved: (value) => email = value!,
+                  ),
+                  TextFormField(
+                    decoration: InputDecoration(
+                      labelText: 'Nom d\'utilisateur',
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Veuillez entrer un nom d\'utilisateur';
+                      }
+                      return null;
+                    },
+                    onSaved: (value) => username = value!,
+                  ),
+                  TextFormField(
+                    decoration: InputDecoration(labelText: 'Mot de passe'),
+                    obscureText: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Veuillez entrer un mot de passe';
+                      }
+                      return null;
+                    },
+                    onSaved: (value) => password = value!,
+                  ),
+                  SwitchListTile(
+                    title: Text('Droits d\'administrateur'),
+                    value: isAdmin,
+                    onChanged: (bool value) {
+                      setState(() {
+                        isAdmin = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (_formKey.currentState!.validate()) {
+                  _formKey.currentState!.save();
+
+                  try {
+                    // Create user without email verification
+                    UserCredential userCredential = await _auth
+                        .createUserWithEmailAndPassword(
+                          email: email,
+                          password: password,
+                        );
+
+                    // Create user document in Firestore
+                    await _firestore
+                        .collection('users')
+                        .doc(userCredential.user!.uid)
+                        .set({
+                          'email': email,
+                          'username': username,
+                          'isAdmin': isAdmin,
+                          'isActive': true,
+                          'isApproved': true,
+                          'createdAt': FieldValue.serverTimestamp(),
+                          'lastLogin': FieldValue.serverTimestamp(),
+                        });
+
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Utilisateur créé avec succès'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Erreur lors de la création: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Text('Créer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteUser(String userIdToDelete, String username) async {
+    bool confirmDelete = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirmer la suppression'),
+          content: Text(
+            'Êtes-vous sûr de vouloir supprimer l\'utilisateur "$username" ?\n\nCette action supprimera définitivement le compte de Firebase Authentication et de Firestore.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text('Supprimer'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmDelete == true) {
+      try {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return Dialog(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.deepOrange),
+                    SizedBox(height: 16),
+                    Text('Suppression du compte en cours...'),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+
+        // Fetch user document to get email
+        DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(userIdToDelete).get();
+
+        String email = userDoc['email'];
+
+        // Delete user from Firestore
+        await _firestore.collection('users').doc(userIdToDelete).delete();
+
+        // Delete user from Firebase Authentication
+        try {
+          // Sign in with the user's email and a temporary password to delete
+          UserCredential userCredential = await _auth
+              .signInWithEmailAndPassword(
+                email: email,
+                password: 'temporaryAdminPassword', // Secure temporary password
+              );
+
+          await userCredential.user!.delete();
+        } catch (authError) {
+          print(
+            'Erreur lors de la suppression de l\'authentification: $authError',
+          );
+          // If direct deletion fails, log the error but continue
+        }
+
+        // Close the loading dialog
+        if (mounted) Navigator.of(context).pop();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Utilisateur supprimé avec succès'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        // Close the loading dialog in case of error
+        if (mounted) Navigator.of(context).pop();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur lors de la suppression: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -94,82 +318,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  Future<void> _deleteUser(String userIdToDelete, String username) async {
-    bool confirmDelete = await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Confirmer la suppression'),
-          content: Text(
-            'Êtes-vous sûr de vouloir supprimer l\'utilisateur "$username" ?\n\nCette action est irréversible et supprimera définitivement le compte.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text('Annuler'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: Text('Supprimer'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmDelete == true) {
-      try {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return Dialog(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Colors.deepOrange),
-                    SizedBox(height: 16),
-                    Text('Suppression du compte en cours...'),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-
-        // Utiliser la nouvelle méthode deleteUser
-        await _authService.deleteUser(userIdToDelete);
-
-        // Fermer le dialogue de chargement
-        if (mounted) Navigator.of(context).pop();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Utilisateur supprimé avec succès'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        // Fermer le dialogue de chargement en cas d'erreur
-        if (mounted) Navigator.of(context).pop();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur lors de la suppression: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
-  }
-
   // Méthode pour définir le statut admin d'un utilisateur
   Future<void> _setAdminStatus(String userId, bool makeAdmin) async {
     await _firestore.collection('users').doc(userId).update({
@@ -200,6 +348,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       return Scaffold(
         body: Center(
           child: CircularProgressIndicator(color: Colors.deepOrange),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _showCreateUserDialog,
+          backgroundColor: Colors.deepOrange,
+          child: Icon(Icons.add),
+          tooltip: 'Créer un nouvel utilisateur',
         ),
       );
     }

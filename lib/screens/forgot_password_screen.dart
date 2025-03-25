@@ -87,9 +87,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           'Mot de passe oublié',
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: Colors.deepOrange,
+        backgroundColor: const Color.fromARGB(255, 168, 28, 28),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+            Icons.arrow_back,
+            color: const Color.fromARGB(215, 255, 255, 255),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
