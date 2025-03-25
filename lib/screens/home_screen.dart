@@ -9,6 +9,7 @@ import '../services/sensor_service.dart';
 import '../screens/login_screen.dart';
 import '../screens/user_management_screen.dart';
 import '../widgets/fire_detection_background.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userEmail;
@@ -674,44 +675,63 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // Dans la classe _HomeScreenState, modifiez la méthode _buildUserInfoCard()
   Widget _buildUserInfoCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: _isAdmin ? Colors.red : Colors.orange,
-              child: Icon(
-                _isAdmin ? Icons.admin_panel_settings : Icons.person,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _isAdmin ? 'Bienvenue, Admin' : 'Bienvenue, Utilisateur',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: _isAdmin ? Colors.red : Colors.black,
-                    ),
+    return FutureBuilder<DocumentSnapshot>(
+      future:
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(_authService.getCurrentUser()?.uid)
+              .get(),
+      builder: (context, snapshot) {
+        String username = 'Utilisateur';
+        if (snapshot.hasData && snapshot.data!.exists) {
+          username = snapshot.data!.get('username') ?? 'Utilisateur';
+        }
+
+        return Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: _isAdmin ? Colors.red : Colors.orange,
+                  child: Icon(
+                    _isAdmin ? Icons.admin_panel_settings : Icons.person,
+                    color: Colors.white,
                   ),
-                  Text(
-                    _authService.getCurrentUserEmail(),
-                    style: const TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bienvenue, $username',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: _isAdmin ? Colors.red : Colors.black,
+                        ),
+                      ),
+                      Text(
+                        _authService.getCurrentUserEmail(),
+                        style: const TextStyle(
+                          color: Color.fromARGB(255, 77, 74, 74),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
