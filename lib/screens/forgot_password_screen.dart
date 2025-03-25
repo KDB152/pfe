@@ -107,14 +107,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   // Titre
                   Text(
                     'Réinitialiser votre mot de passe',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: const Color.fromARGB(255, 187, 183, 183),
+                    ),
                   ),
                   SizedBox(height: 16),
 
                   // Instructions
                   Text(
                     'Entrez votre adresse e-mail pour recevoir un lien de réinitialisation du mot de passe.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: const Color.fromARGB(255, 187, 183, 183),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 32),
 
@@ -124,6 +132,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     label: 'E-mail',
                     hint: 'Entrez votre adresse e-mail',
                     prefixIcon: Icons.email_outlined,
+                    labelStyle: TextStyle(
+                      color: const Color.fromARGB(255, 187, 183, 183),
+                    ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Veuillez entrer votre e-mail';
@@ -156,6 +167,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     text: 'REINITIALISER VOTRE MOT DE PASSE',
                     isLoading: _isLoading,
                     onPressed: _resetPassword,
+
+                    backgroundColor: const Color.fromARGB(216, 212, 46, 46),
                   ),
                 ],
               ),

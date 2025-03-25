@@ -11,6 +11,7 @@ class CustomTextField extends StatefulWidget {
   final TextInputType keyboardType;
   final Function()? onTap;
   final int? maxLines;
+  final TextStyle? labelStyle;
 
   const CustomTextField({
     Key? key,
@@ -18,6 +19,7 @@ class CustomTextField extends StatefulWidget {
     required this.label,
     required this.hint,
     required this.prefixIcon,
+    this.labelStyle,
     this.isPassword = false,
     this.validator,
     this.readOnly = false,
@@ -40,11 +42,14 @@ class _CustomTextFieldState extends State<CustomTextField> {
       children: [
         Text(
           widget.label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey[800],
-          ),
+          style:
+              widget.labelStyle ??
+              TextStyle(
+                // Appliquer labelStyle si fourni
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[800],
+              ),
         ),
         const SizedBox(height: 8),
         TextFormField(

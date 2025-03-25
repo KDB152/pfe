@@ -230,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           'Restez en sécurité grâce à la détection des incendies ',
                           style: TextStyle(
                             fontSize: 14,
-                            color: const Color.fromARGB(255, 133, 131, 131),
+                            color: const Color.fromARGB(255, 187, 183, 183),
                           ),
                         ),
                       ],
@@ -242,7 +242,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Titre de la page
                   Text(
                     'Se Connecter',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: const Color.fromARGB(255, 187, 183, 183),
+                    ),
                   ),
                   SizedBox(height: 24),
 
@@ -251,6 +255,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _emailController,
                     label: 'E-mail',
                     hint: 'Entrer votre e-mail',
+                    labelStyle: TextStyle(
+                      color: const Color.fromARGB(255, 187, 183, 183),
+                    ),
                     prefixIcon: Icons.email_outlined,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -269,6 +276,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _passwordController,
                     label: 'Mot de passe',
                     hint: 'Entrer votre mot de passe',
+                    labelStyle: TextStyle(
+                      color: const Color.fromARGB(255, 187, 183, 183),
+                    ),
                     prefixIcon: Icons.lock_outline,
                     isPassword: true,
                     validator: (value) {
@@ -296,10 +306,34 @@ class _LoginScreenState extends State<LoginScreen> {
                                   _rememberMe = value!;
                                 });
                               },
+                              activeColor: const Color.fromARGB(
+                                255,
+                                187,
+                                183,
+                                183,
+                              ), // Couleur de fond quand coché
+                              checkColor:
+                                  Colors.white, // Couleur de la coche (✓)
+                              side: const BorderSide(
+                                // Bordure personnalisée
+                                color: Color.fromARGB(
+                                  255,
+                                  187,
+                                  183,
+                                  183,
+                                ), // Couleur du cadre
+                                width: 2, // Épaisseur du cadre
+                              ),
                             ),
                           ),
+
                           SizedBox(width: 10),
-                          Text('Se mémoriser'),
+                          Text(
+                            'Se mémoriser',
+                            style: TextStyle(
+                              color: const Color.fromARGB(255, 187, 183, 183),
+                            ),
+                          ),
                         ],
                       ),
                       TextButton(
@@ -314,7 +348,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'Mot de passe oublié ?',
                           style: TextStyle(
-                            color: const Color.fromARGB(255, 255, 255, 255),
+                            color: const Color.fromARGB(255, 187, 183, 183),
                           ),
                         ),
                       ),
@@ -328,7 +362,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.only(bottom: 16.0),
                       child: Text(
                         _errorMessage,
-                        style: TextStyle(color: Colors.red),
+                        style: TextStyle(
+                          color: const Color.fromARGB(255, 189, 26, 15),
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -338,6 +374,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     text: 'SE CONNECTER',
                     isLoading: _isLoading,
                     onPressed: _login,
+                    textColor: const Color.fromARGB(255, 255, 255, 255),
+                    backgroundColor: Colors.transparent,
                   ),
                   SizedBox(height: 24),
 
@@ -358,7 +396,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'Créer un compte',
                           style: TextStyle(
-                            color: const Color.fromARGB(255, 255, 255, 255),
+                            color: const Color.fromARGB(255, 212, 211, 211),
                           ),
                         ),
                       ),

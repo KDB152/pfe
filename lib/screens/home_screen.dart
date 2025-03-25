@@ -225,7 +225,11 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             const Text(
               'Mesures en temps réel',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color.fromARGB(255, 187, 183, 183),
+              ),
             ),
             const SizedBox(height: 10),
             GridView.count(
@@ -321,7 +325,11 @@ class _HomeScreenState extends State<HomeScreen>
       children: [
         const Text(
           'Évolution des données',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color.fromARGB(255, 187, 183, 183),
+          ),
         ),
         const SizedBox(height: 10),
         Card(
@@ -716,7 +724,11 @@ class _HomeScreenState extends State<HomeScreen>
       children: [
         const Text(
           'État du système',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color.fromARGB(255, 187, 183, 183),
+          ),
         ),
         const SizedBox(height: 10),
         Card(
@@ -814,7 +826,11 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             const Text(
               'Dernières alertes',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color.fromARGB(255, 187, 183, 183),
+              ),
             ),
             TextButton(
               onPressed: () {

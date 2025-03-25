@@ -11,7 +11,7 @@ import 'screens/users_comments_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  var firebaseApp = await Firebase.initializeApp();
 
   // Fixer l'orientation de l'écran en mode portrait uniquement
   SystemChrome.setPreferredOrientations([

@@ -99,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: Center(
                             child: Icon(
                               Icons.local_fire_department,
-                              color: Colors.deepOrange,
+                              color: const Color.fromARGB(255, 255, 0, 0),
                               size: 70,
                             ),
                           ),
@@ -110,7 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.deepOrange,
+                            color: const Color.fromARGB(255, 255, 60, 0),
                           ),
                         ),
                         SizedBox(height: 8),
@@ -118,7 +118,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           'Restez en sécurité grâce à la détection des incendies',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[600],
+                            color: const Color.fromARGB(255, 187, 183, 183),
                           ),
                         ),
                       ],
@@ -129,7 +129,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Titre de la page
                   Text(
                     'Créer un compte',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: const Color.fromARGB(255, 187, 183, 183),
+                    ),
                   ),
                   SizedBox(height: 24),
 
@@ -139,6 +143,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     label: 'Nom d\'utilisateur',
                     hint: 'Entrez votre nom d\'utilisateur',
                     prefixIcon: Icons.person_outline,
+                    labelStyle: TextStyle(
+                      color: const Color.fromARGB(255, 187, 183, 183),
+                    ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Veuillez entrer un nom d\'utilisateur';
@@ -152,6 +159,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     label: 'E-mail',
                     hint: 'Entrer votre e-mail',
                     prefixIcon: Icons.email_outlined,
+                    labelStyle: TextStyle(
+                      color: const Color.fromARGB(255, 187, 183, 183),
+                    ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Veuillez entrer votre email';
@@ -169,6 +179,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _passwordController,
                     label: 'Mot de passe',
                     hint: 'Entrer votre mot de passe',
+                    labelStyle: TextStyle(
+                      color: const Color.fromARGB(255, 187, 183, 183),
+                    ),
                     prefixIcon: Icons.lock_outline,
                     isPassword: true,
                     validator: (value) {
@@ -187,6 +200,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     label: 'Confirmer votre mot de passe',
                     hint: 'Confirmer votre password',
                     prefixIcon: Icons.lock_outline,
+                    labelStyle: TextStyle(
+                      color: const Color.fromARGB(255, 187, 183, 183),
+                    ),
                     isPassword: true,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -216,6 +232,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     text: 'CREER LE COMPTE',
                     isLoading: _isLoading,
                     onPressed: _register,
+
+                    backgroundColor: const Color.fromARGB(0, 192, 15, 15),
                   ),
                   SizedBox(height: 24),
 
@@ -235,7 +253,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         },
                         child: Text(
                           'Se connecter',
-                          style: TextStyle(color: Colors.deepOrange),
+                          style: TextStyle(
+                            color: const Color.fromARGB(255, 255, 255, 255),
+                          ),
                         ),
                       ),
                     ],
