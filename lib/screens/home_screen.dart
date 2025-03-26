@@ -517,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen>
                           _isAdmin
                               ? Icons.admin_panel_settings
                               : Icons.local_fire_department,
-                          color: Colors.deepOrange,
+                          color: const Color.fromARGB(255, 255, 0, 0),
                           size: 50,
                         ),
                       ),
