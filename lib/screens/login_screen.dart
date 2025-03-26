@@ -174,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 return;
               default:
                 _errorMessage =
-                    'Votre e-mail et/ou mot de passe incorrect(s) !';
+                    'Votre e-mail et/ou mot de passe incorrect(s) ! ';
             }
           });
         } catch (e) {
@@ -370,7 +370,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Text(
                         _errorMessage,
                         style: TextStyle(
-                          color: const Color.fromARGB(255, 189, 26, 15),
+                          color: const Color.fromARGB(255, 255, 255, 255),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
                       ),

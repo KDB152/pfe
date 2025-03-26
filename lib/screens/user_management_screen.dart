@@ -57,7 +57,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  // New method to create a user directly from admin panel
   void _showCreateUserDialog() {
     final _formKey = GlobalKey<FormState>();
     String email = '';
@@ -70,55 +69,82 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Créer un nouvel utilisateur'),
-          content: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    decoration: InputDecoration(labelText: 'Email'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Veuillez entrer un email';
-                      }
-                      return null;
-                    },
-                    onSaved: (value) => email = value!,
-                  ),
-                  TextFormField(
-                    decoration: InputDecoration(
-                      labelText: 'Nom d\'utilisateur',
+          content: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Container(
+                width:
+                    MediaQuery.of(context).size.width *
+                    0.8, // Largeur plus grande
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(height: 10),
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        prefixIcon: Icon(Icons.email),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Veuillez entrer un email';
+                        }
+                        if (!RegExp(
+                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                        ).hasMatch(value)) {
+                          return 'Veuillez entrer un email valide';
+                        }
+                        return null;
+                      },
+                      onSaved: (value) => email = value!.trim(),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Veuillez entrer un nom d\'utilisateur';
-                      }
-                      return null;
-                    },
-                    onSaved: (value) => username = value!,
-                  ),
-                  TextFormField(
-                    decoration: InputDecoration(labelText: 'Mot de passe'),
-                    obscureText: true,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Veuillez entrer un mot de passe';
-                      }
-                      return null;
-                    },
-                    onSaved: (value) => password = value!,
-                  ),
-                  SwitchListTile(
-                    title: Text('Droits d\'administrateur'),
-                    value: isAdmin,
-                    onChanged: (bool value) {
-                      setState(() {
-                        isAdmin = value;
-                      });
-                    },
-                  ),
-                ],
+                    SizedBox(height: 15),
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Nom d\'utilisateur',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Veuillez entrer un nom d\'utilisateur';
+                        }
+                        if (value.length < 3) {
+                          return 'Le nom d\'utilisateur doit contenir au moins 3 caractères';
+                        }
+                        return null;
+                      },
+                      onSaved: (value) => username = value!.trim(),
+                    ),
+                    SizedBox(height: 15),
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Mot de passe',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        prefixIcon: Icon(Icons.lock),
+                      ),
+                      obscureText: true,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Veuillez entrer un mot de passe';
+                        }
+                        if (value.length < 8) {
+                          return 'Le mot de passe doit contenir au moins 8 caractères';
+                        }
+                        return null;
+                      },
+                      onSaved: (value) => password = value!,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -133,14 +159,33 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   _formKey.currentState!.save();
 
                   try {
-                    // Create user without email verification
+                    // Vérifier si l'email existe déjà
+                    var emailExists =
+                        await _firestore
+                            .collection('users')
+                            .where('email', isEqualTo: email)
+                            .get();
+
+                    if (emailExists.docs.isNotEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Un utilisateur avec cet email existe déjà',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Créer l'utilisateur
                     UserCredential userCredential = await _auth
                         .createUserWithEmailAndPassword(
                           email: email,
                           password: password,
                         );
 
-                    // Create user document in Firestore
+                    // Créer le document utilisateur dans Firestore
                     await _firestore
                         .collection('users')
                         .doc(userCredential.user!.uid)
@@ -150,15 +195,42 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           'isAdmin': isAdmin,
                           'isActive': true,
                           'isApproved': true,
+                          'emailVerified': false, // Par défaut à false
                           'createdAt': FieldValue.serverTimestamp(),
-                          'lastLogin': FieldValue.serverTimestamp(),
+                          'lastLogin': null,
                         });
+
+                    // Envoyer un email de vérification
+                    await userCredential.user?.sendEmailVerification();
 
                     Navigator.of(context).pop();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Utilisateur créé avec succès'),
+                        content: Text(
+                          'Utilisateur créé avec succès. Vérifiez votre email.',
+                        ),
                         backgroundColor: Colors.green,
+                      ),
+                    );
+                  } on FirebaseAuthException catch (e) {
+                    String errorMessage = 'Une erreur est survenue';
+
+                    switch (e.code) {
+                      case 'email-already-in-use':
+                        errorMessage = 'Cet email est déjà utilisé';
+                        break;
+                      case 'invalid-email':
+                        errorMessage = 'Format d\'email invalide';
+                        break;
+                      case 'weak-password':
+                        errorMessage = 'Le mot de passe est trop faible';
+                        break;
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(errorMessage),
+                        backgroundColor: Colors.red,
                       ),
                     );
                   } catch (e) {
@@ -380,6 +452,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         title: Text('Gestionnaire des Utilisateurs'),
         backgroundColor: Colors.deepOrange,
         actions: [
+          // Bouton pour créer un utilisateur
+          IconButton(
+            icon: Icon(Icons.add),
+            onPressed: _showCreateUserDialog,
+            tooltip: 'Créer un utilisateur',
+          ),
           PopupMenuButton<String>(
             icon: Icon(Icons.filter_list),
             onSelected: (String value) {

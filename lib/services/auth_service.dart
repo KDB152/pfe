@@ -256,63 +256,84 @@ class AuthService {
     try {
       User? user = _auth.currentUser;
       if (user == null) throw Exception("Aucun utilisateur connecté");
+      await _setUserDeleted(user.uid);
 
-      // Supprimer d'abord les données Firestore
-      await _firestore.collection('users').doc(user.uid).delete();
-
-      // Puis supprimer le compte Auth
-      await user.delete();
+      if (user != null) {
+        // Suppression directe si c'est l'utilisateur actuel
+        await user.delete();
+      } else if (user.email != null) {
+        // Suppression par un admin via connexion temporaire
+        await _deleteUserByAdmin(user.email!);
+      }
     } catch (e) {
       print('Erreur lors de la suppression du compte: $e');
       rethrow;
     }
   }
 
-  // Suppression d'un utilisateur
   Future<void> deleteUser(String userId) async {
     try {
-      // 1. Supprimer le document utilisateur de Firestore
-      await _firestore.collection('users').doc(userId).delete();
-      // 2. Supprimer l'utilisateur de Firebase Authentication
-      User? currentUser = _auth.currentUser;
-      if (currentUser != null) {
-        // Si c'est l'utilisateur actuellement connecté
-        await currentUser.delete();
-      } else {
-        // Si supprimé par un admin, récupérer l'utilisateur par son UID
-        await _deleteUserFromAuth(userId);
+      // Vérifier si l'utilisateur existe
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(userId).get();
+
+      if (!userDoc.exists) {
+        print('Utilisateur non trouvé.');
+        return;
       }
+      User? user = _auth.currentUser;
+      if (user == null) throw Exception("Aucun utilisateur connecté");
+      await _setUserDeleted(user.uid);
+
+      if (user != null) {
+        // Suppression directe si c'est l'utilisateur actuel
+        await user.delete();
+      } else if (user.email != null) {
+        // Suppression par un admin via connexion temporaire
+        await _deleteUserByAdmin(user.email!);
+      }
+      // Mettre à jour "isDeleted" dans Firestore au lieu de supprimer l'utilisateur
+      await _setUserDeleted(userId);
     } catch (e) {
       print('Erreur lors de la suppression de l\'utilisateur: $e');
       rethrow;
     }
-  } // Méthode privée pour supprimer un utilisateur de Firebase Auth
+  }
 
-  Future<void> _deleteUserFromAuth(String userId) async {
+  // ✅ Méthode pour mettre "isDeleted" à true dans Firestore (sans supprimer l'utilisateur)
+  Future<void> _setUserDeleted(String userId) async {
     try {
-      // Récupérer l'email de l'utilisateur depuis Firestore avant de le supprimer
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(userId).get();
-      String? email = userDoc.get('email');
-      if (email != null) {
-        // Créer une méthode personnalisée pour supprimer l'utilisateur sans réauthentification directe
-        await _adminDeleteUser(email);
-      }
+      await _firestore.collection('users').doc(userId).update({
+        'isDeleted': true,
+      });
     } catch (e) {
-      print('Erreur lors de la suppression de l\'utilisateur d\'Auth: $e');
       rethrow;
     }
   }
 
-  // Méthode pour la suppression par un admin
-  Future<void> _adminDeleteUser(String email) async {
+  // ✅ Fonction pour vérifier si un utilisateur est marqué comme supprimé
+  Future<bool> isDeleted(String userId) async {
     try {
-      // Récupérer tous les utilisateurs et trouver celui avec l'email correspondant
-      UserCredential? userCredential = await _auth.signInWithEmailAndPassword(
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        return userDoc.get('isDeleted') ?? false;
+      }
+      return false;
+    } catch (e) {
+      print('Erreur lors de la vérification de isDeleted: $e');
+      return false;
+    }
+  }
+
+  // 🔐 Suppression par un admin via connexion temporaire
+  Future<void> _deleteUserByAdmin(String email) async {
+    try {
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: 'temporaryAdminPassword',
-        // Un mot de passe temporaire sécurisé
       );
+
       await userCredential.user?.delete();
     } catch (e) {
       print('Erreur lors de la suppression admin: $e');
