@@ -24,6 +24,57 @@ class VerifyEmailScreen extends StatefulWidget {
   _VerifyEmailScreenState createState() => _VerifyEmailScreenState();
 }
 
+class EmailVerificationSuccessScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.check_circle_outline, size: 100, color: Colors.green),
+              SizedBox(height: 32),
+              Text(
+                'Vérification réussie !',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Votre adresse email a été vérifiée \n avec succès.\n\nVous pouvez maintenant vous connecter à votre compte.',
+                style: TextStyle(fontSize: 18, color: Colors.black87),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  textStyle: TextStyle(fontSize: 16),
+                ),
+                child: Text('Retour à la connexion'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   final AuthService _authService = AuthService();
   late Timer _timer;
@@ -71,11 +122,12 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   // Créer le profil utilisateur maintenant que l'email est vérifié
                   await _authService.createUserProfile();
 
-                  // Rediriger vers la page d'accueil
-                  var userEmail = FirebaseAuth.instance.currentUser?.email;
+                  // Naviguer vers un nouvel écran de succès
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => EmailVerificationSuccessScreen(),
+                    ),
                   );
                 } catch (e) {
                   if (mounted) {

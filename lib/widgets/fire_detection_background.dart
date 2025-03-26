@@ -232,49 +232,53 @@ class HouseFirePainter extends CustomPainter {
     );
   }
 
+  // Modification des flammes pour plus de réalisme
   void _drawFlame(
     Canvas canvas,
     Offset basePosition,
     Size size,
     double animValue,
   ) {
+    // Variation plus naturelle de la hauteur des flammes
     double flameHeight =
-        size.height * (0.08 + 0.04 * math.sin(animValue * math.pi * 2));
-    double flameWidth = size.width * 0.06;
+        size.height * (0.1 + 0.06 * math.sin(animValue * math.pi * 3));
+    double flameWidth = size.width * 0.07;
 
     final flamePath = Path();
     flamePath.moveTo(basePosition.dx, basePosition.dy);
 
-    // Create flame shape
-    for (int i = 0; i <= 12; i++) {
-      double t = i / 12;
+    // Forme de flamme plus organique
+    for (int i = 0; i <= 15; i++) {
+      double t = i / 15;
       double angle = math.pi + t * math.pi;
+      double randomVariation = math.sin(t * 10 + animValue * math.pi * 4);
+
       double radius =
-          flameHeight *
-          math.sin(t * math.pi) *
-          (0.8 + 0.3 * math.sin(t * 6 + animValue * math.pi * 2));
+          flameHeight * math.sin(t * math.pi) * (0.9 + 0.4 * randomVariation);
 
       double xOffset =
           math.cos(angle) *
           flameWidth *
-          (0.5 + 0.5 * math.sin(t * 4 + animValue * math.pi * 3));
+          (0.6 + 0.4 * math.sin(t * 6 + animValue * math.pi * 2));
 
       flamePath.lineTo(basePosition.dx + xOffset, basePosition.dy - radius);
     }
 
     flamePath.close();
 
-    // Flame gradient
+    // Gradient de flamme plus nuancé et réaliste
     final flameGradient = RadialGradient(
       center: Alignment(0.0, 0.5),
       radius: 1.0,
       colors: [
+        Colors.white.withOpacity(0.7), // Lumière blanche intense au centre
         Colors.yellow.withOpacity(0.9),
         Colors.orange.withOpacity(0.85),
         Colors.deepOrange.withOpacity(0.8),
-        Colors.red.withOpacity(0.7),
+        Colors.red.withOpacity(0.6),
+        Colors.transparent, // Dégradé vers la transparence
       ],
-      stops: const [0.1, 0.4, 0.7, 1.0],
+      stops: const [0.05, 0.2, 0.4, 0.7, 0.9, 1.0],
     );
 
     final flamePaint =
@@ -282,18 +286,18 @@ class HouseFirePainter extends CustomPainter {
           ..shader = flameGradient.createShader(
             Rect.fromCenter(
               center: basePosition.translate(0, -flameHeight / 2),
-              width: flameWidth * 2,
-              height: flameHeight,
+              width: flameWidth * 2.5,
+              height: flameHeight * 1.5,
             ),
           );
 
     canvas.drawPath(flamePath, flamePaint);
 
-    // Add glow effect
+    // Effet de lueur plus subtil et réaliste
     final glowPaint =
         Paint()
-          ..color = Colors.orangeAccent.withOpacity(0.3)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
+          ..color = Colors.orangeAccent.withOpacity(0.2)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 12);
 
     canvas.drawPath(flamePath, glowPaint);
   }
@@ -304,21 +308,47 @@ class HouseFirePainter extends CustomPainter {
     Size size,
     double animValue,
   ) {
-    for (int i = 0; i < 6; i++) {
-      double t = (animValue + i * 0.15) % 1.0;
-      double smokeY = basePosition.dy - t * size.height * 0.25;
-      double smokeX =
-          basePosition.dx + math.sin(t * math.pi * 3) * size.width * 0.03;
+    final random = math.Random();
 
-      double opacity = (1 - t) * 0.2;
-      double smokeSize = size.width * 0.03 * (0.5 + t);
+    for (int i = 0; i < 10; i++) {
+      double t = (animValue + i * 0.08) % 1.0;
+
+      // Trajectoire de fumée plus complexe
+      double smokeY =
+          basePosition.dy -
+          t * size.height * 0.35 * (1 + 0.2 * math.sin(t * math.pi * 5));
+
+      double smokeX =
+          basePosition.dx +
+          math.sin(t * math.pi * 6) * size.width * 0.07 +
+          random.nextDouble() * size.width * 0.02;
+
+      double opacity = (1 - t) * 0.3;
+      double smokeSize = size.width * 0.05 * (0.7 + t);
 
       final smokePaint =
           Paint()
             ..color = Colors.grey.withOpacity(opacity)
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4);
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
 
-      canvas.drawCircle(Offset(smokeX, smokeY), smokeSize, smokePaint);
+      // Forme de fumée plus complexe et variée
+      Path smokePath = Path();
+      smokePath.addOval(
+        Rect.fromCenter(
+          center: Offset(smokeX, smokeY),
+          width: smokeSize * (1.5 + random.nextDouble() * 0.5),
+          height: smokeSize * (0.8 + random.nextDouble() * 0.4),
+        ),
+      );
+
+      // Rotation légère de la fumée
+      final Matrix4 rotationMatrix =
+          Matrix4.identity()..rotateZ(random.nextDouble() * 0.2);
+
+      canvas.save();
+      canvas.transform(rotationMatrix.storage);
+      canvas.drawPath(smokePath, smokePaint);
+      canvas.restore();
     }
   }
 
