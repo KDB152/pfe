@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
 import '../screens/login_screen.dart';
@@ -34,39 +35,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
-      // Vérifier que les mots de passe correspondent
-      if (_passwordController.text != _confirmPasswordController.text) {
-        setState(() {
-          _errorMessage = 'Les mots de passe ne correspondent pas';
-        });
-        return;
-      }
-
       setState(() {
         _isLoading = true;
         _errorMessage = '';
       });
 
       try {
-        // Créer l'utilisateur sans attendre la vérification de l'email
-        await _authService.registerWithEmailAndPassword(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-          _usernameController.text.trim(),
-        );
+        // Register user
+        UserCredential userCredential = await _authService
+            .registerWithEmailAndPassword(
+              _emailController.text.trim(),
+              _passwordController.text,
+              _usernameController.text.trim(),
+            );
 
-        // Naviguer immédiatement vers l'écran de vérification d'email
-        // sans attendre ni afficher de message
+        // Navigate to email verification screen
         if (mounted) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => VerifyEmailScreen()),
           );
         }
-      } catch (e) {
-        print('Detailed error: $e');
+      } on FirebaseAuthException catch (e) {
         setState(() {
-          _errorMessage = 'Échec de l\'inscription !!';
+          switch (e.code) {
+            case 'weak-password':
+              _errorMessage = 'The password is too weak.';
+              break;
+            case 'email-already-in-use':
+              _errorMessage = 'An account already exists with this email.';
+              break;
+            default:
+              _errorMessage = 'Registration failed. Please try again.';
+          }
+        });
+      } catch (e) {
+        setState(() {
+          _errorMessage = 'An unexpected error occurred.';
+        });
+      } finally {
+        setState(() {
           _isLoading = false;
         });
       }

@@ -85,46 +85,98 @@ class AuthService {
     return _auth.currentUser;
   }
 
-  // Inscription avec email et mot de passe
-
-  // Inscription d'un nouvel utilisateur
   Future<UserCredential> registerWithEmailAndPassword(
     String email,
     String password,
     String username,
   ) async {
     try {
-      // Créer l'utilisateur dans Firebase Auth
+      // Create user in Firebase Auth without adding to Firestore initially
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // Envoyer l'email de vérification
+      // Send email verification
       await result.user!.sendEmailVerification();
 
-      // Sauvegarder les informations temporaires
+      // Save temporary registration info in SharedPreferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('pending_username', username);
       await prefs.setString('pending_email', email);
+      await prefs.setString('pending_password', password);
 
-      // Vérifier si c'est l'email admin
-      bool isAdminUser = (email == 'detecteurincendie7@gmail.com');
+      return result;
+    } catch (e) {
+      rethrow;
+    }
+  }
 
-      // Créer le document utilisateur dans Firestore
-      await _firestore.collection('users').doc(result.user!.uid).set({
-        'email': email,
-        'username': username,
-        'isActive': true,
-        'isApproved': isAdminUser,
-        'isAdmin': isAdminUser,
-        'createdAt': FieldValue.serverTimestamp(),
+  // Modify the signInWithEmailAndPassword method
+  Future<UserCredential> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    try {
+      UserCredential result = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Check if email is verified
+      if (!result.user!.emailVerified) {
+        // Sign out and throw an exception to redirect to verification screen
+        await _auth.signOut();
+        throw FirebaseAuthException(
+          code: 'email-not-verified',
+          message: 'Email not verified',
+        );
+      }
+
+      // Only update Firestore if email is verified
+      await _firestore.collection('users').doc(result.user!.uid).update({
         'lastLogin': FieldValue.serverTimestamp(),
       });
 
       return result;
     } catch (e) {
+      print('E-mail et/ou mot de passe incorrect(s)');
       rethrow;
+    }
+  }
+
+  // Modify createUserProfile to only create profile when email is verified
+  Future<void> createUserProfile() async {
+    User? user = _auth.currentUser;
+    if (user != null && user.emailVerified) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? username = prefs.getString('pending_username');
+      String? email = prefs.getString('pending_email');
+
+      await Firebase.initializeApp();
+
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(user.uid).get();
+
+      if (!userDoc.exists) {
+        // Check if it's the initial admin email
+        bool isAdminUser = user.email == 'detecteurincendie7@gmail.com';
+
+        await _firestore.collection('users').doc(user.uid).set({
+          'username': username ?? user.displayName ?? 'User',
+          'email': email,
+          'isAdmin': isAdminUser,
+          'isActive': true,
+          'isApproved': isAdminUser,
+          'createdAt': Timestamp.now(),
+          'emailVerified': user.emailVerified,
+        });
+
+        // Clear pending registration info
+        await prefs.remove('pending_username');
+        await prefs.remove('pending_email');
+        await prefs.remove('pending_password');
+      }
     }
   }
 
@@ -145,36 +197,6 @@ class AuthService {
     }
   }
 
-  // Créer le profil utilisateur dans Firestore après vérification de l'email
-  Future<void> createUserProfile() async {
-    User? user = _auth.currentUser;
-    if (user != null && user.emailVerified) {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? username = prefs.getString('pending_username');
-      await Firebase.initializeApp();
-
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(user.uid).get();
-
-      if (!userDoc.exists) {
-        // Vérifier si c'est l'email initial d'admin
-        bool isAdminUser = user.email == 'detecteurincendie7@gmail.com';
-
-        await _firestore.collection('users').doc(user.uid).set({
-          'username': username ?? user.displayName ?? 'User',
-          'email': user.email,
-          'isAdmin':
-              isAdminUser, // Définir comme admin si c'est l'email initial
-          'createdAt': Timestamp.now(),
-          'emailVerified': user.emailVerified,
-        });
-
-        await prefs.remove('pending_username');
-        await prefs.remove('pending_email');
-      }
-    }
-  }
-
   Future<void> signIn(String email, String password) async {
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
@@ -186,31 +208,6 @@ class AuthService {
         {'lastLogin': FieldValue.serverTimestamp()},
       );
     } catch (e) {
-      rethrow;
-    }
-  }
-
-  // Connexion avec email et mot de passe
-  Future<UserCredential> signInWithEmailAndPassword(
-    String email,
-    String password,
-  ) async {
-    try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      // Vérifier si le compte est actif
-      bool isActive = await isUserActive(result.user!.uid);
-
-      // Mettre à jour la dernière connexion
-      await _firestore.collection('users').doc(result.user!.uid).update({
-        'lastLogin': FieldValue.serverTimestamp(),
-      });
-
-      return result;
-    } catch (e) {
-      print('E-mail et/ou mot de passe incorrect(s)');
       rethrow;
     }
   }

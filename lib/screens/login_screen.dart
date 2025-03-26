@@ -161,6 +161,17 @@ class _LoginScreenState extends State<LoginScreen> {
               case 'user-disabled':
                 _errorMessage = 'This account has been disabled.';
                 break;
+              case 'email-not-verified':
+                // Redirect to email verification screen
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => VerifyEmailScreen(),
+                    ),
+                  );
+                }
+                return;
               default:
                 _errorMessage =
                     'Votre e-mail et/ou mot de passe incorrect(s) !';
