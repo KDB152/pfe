@@ -349,12 +349,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         body: Center(
           child: CircularProgressIndicator(color: Colors.deepOrange),
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _showCreateUserDialog,
-          backgroundColor: Colors.deepOrange,
-          child: Icon(Icons.add),
-          tooltip: 'Créer un nouvel utilisateur',
-        ),
       );
     }
 
