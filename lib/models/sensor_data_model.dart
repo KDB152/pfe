@@ -15,11 +15,11 @@ class SensorData {
 
   factory SensorData.fromJson(Map<String, dynamic> json) {
     return SensorData(
-      temperature: (json['temperature'] as num).toDouble(),
-      humidity: (json['humidity'] as num).toDouble(),
-      smoke: (json['smoke'] as num).toDouble(),
-      co2: (json['co2'] as num).toDouble(),
-      isAlarmActive: json['isAlarmActive'] as bool,
+      temperature: json['temperature']?.toDouble() ?? 0.0,
+      humidity: json['humidity']?.toDouble() ?? 0.0,
+      smoke: json['smoke']?.toDouble() ?? 0.0,
+      co2: json['co2']?.toDouble() ?? 0.0, // Renommé de gas à co2
+      isAlarmActive: json['isAlarmActive'] ?? false,
     );
   }
 
@@ -53,15 +53,17 @@ class Alert {
 
   factory Alert.fromJson(Map<String, dynamic> json) {
     return Alert(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String,
-      timestamp: DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int),
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      timestamp: DateTime.parse(
+        json['timestamp'] ?? DateTime.now().toIso8601String(),
+      ),
       type: AlertType.values.firstWhere(
-        (e) => e.toString().split('.').last == json['type'],
+        (e) => e.toString() == 'AlertType.${json['type']}',
         orElse: () => AlertType.info,
       ),
-      isRead: json['isRead'] as bool? ?? false,
+      isRead: json['isRead'] ?? false,
     );
   }
 
@@ -70,7 +72,7 @@ class Alert {
       'id': id,
       'title': title,
       'description': description,
-      'timestamp': timestamp.millisecondsSinceEpoch,
+      'timestamp': timestamp.toIso8601String(),
       'type': type.toString().split('.').last,
       'isRead': isRead,
     };
@@ -80,9 +82,9 @@ class Alert {
 enum AlertType {
   smoke,
   co2,
-  temperature,
-  humidity,
   test,
+  humidity,
+  temperature,
   falseAlarm,
   systemFailure,
   info,
