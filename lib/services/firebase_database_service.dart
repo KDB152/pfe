@@ -27,9 +27,15 @@ class FirebaseDatabaseService {
   Future<SensorData> getSensorData() async {
     DatabaseEvent event = await _sensorDataRef.once();
     if (event.snapshot.value != null) {
-      return SensorData.fromJson(
-        Map<String, dynamic>.from(event.snapshot.value as Map),
-      );
+      Map<dynamic, dynamic> rawData = event.snapshot.value as Map;
+      Map<String, dynamic> data = {};
+
+      // Conversion du Map<dynamic, dynamic> en Map<String, dynamic>
+      rawData.forEach((key, value) {
+        data[key.toString()] = value;
+      });
+
+      return SensorData.fromJson(data);
     }
     // Retourner des valeurs par défaut si aucune donnée n'existe
     return SensorData(
@@ -44,9 +50,15 @@ class FirebaseDatabaseService {
   Stream<SensorData> getSensorDataStream() {
     return _sensorDataRef.onValue.map((event) {
       if (event.snapshot.value != null) {
-        return SensorData.fromJson(
-          Map<String, dynamic>.from(event.snapshot.value as Map),
-        );
+        Map<dynamic, dynamic> rawData = event.snapshot.value as Map;
+        Map<String, dynamic> data = {};
+
+        // Conversion du Map<dynamic, dynamic> en Map<String, dynamic>
+        rawData.forEach((key, value) {
+          data[key.toString()] = value;
+        });
+
+        return SensorData.fromJson(data);
       }
       return SensorData(
         temperature: 22.0,
