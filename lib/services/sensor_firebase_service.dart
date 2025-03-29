@@ -1,23 +1,21 @@
-import 'dart:convert';
 import 'dart:async';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/sensor_data_model.dart';
+import 'firebase_database_service.dart';
 
-class SensorService {
-  // Singleton pattern pour SensorService
-  static final SensorService _instance = SensorService._internal();
-  factory SensorService() => _instance;
-  SensorService._internal();
+class SensorFirebaseService {
+  // Singleton pattern
+  static final SensorFirebaseService _instance =
+      SensorFirebaseService._internal();
+  factory SensorFirebaseService() => _instance;
+  SensorFirebaseService._internal();
 
-  // Clés pour SharedPreferences
-  static const String _sensorDataKey = 'sensor_data';
-  static const String _alertsKey = 'alerts';
+  // Instance du service Firebase
+  final FirebaseDatabaseService _firebaseService = FirebaseDatabaseService();
 
-  // Stream controller pour les mises à jour de capteurs
+  // Stream controllers
   final _sensorDataStreamController = StreamController<SensorData>.broadcast();
   Stream<SensorData> get sensorDataStream => _sensorDataStreamController.stream;
 
-  // Stream controller pour les alertes
   final _alertsStreamController = StreamController<List<Alert>>.broadcast();
   Stream<List<Alert>> get alertsStream => _alertsStreamController.stream;
 
@@ -29,78 +27,38 @@ class SensorService {
     temperature: 22.0,
     humidity: 45.0,
     smoke: 0.0,
-    co2: 850.0, // Valeur initiale de CO2 adaptée
+    co2: 850.0,
     isAlarmActive: false,
   );
 
   // Liste des alertes
   List<Alert> _alerts = [];
 
+  // Abonnements aux streams Firebase
+  StreamSubscription? _sensorDataSubscription;
+  StreamSubscription? _alertsSubscription;
+
   // Initialiser le service
   Future<void> initialize() async {
-    // Charger les données de capteurs depuis SharedPreferences
-    await _loadSensorData();
-    await _loadAlerts();
+    // Charger les données initiales depuis Firebase
+    _lastSensorData = await _firebaseService.getSensorData();
+    _alerts = await _firebaseService.getAlerts();
+
+    // S'abonner aux changements de données
+    _sensorDataSubscription = _firebaseService.getSensorDataStream().listen((
+      data,
+    ) {
+      _lastSensorData = data;
+      _sensorDataStreamController.add(data);
+    });
+
+    _alertsSubscription = _firebaseService.getAlertsStream().listen((alerts) {
+      _alerts = alerts;
+      _alertsStreamController.add(alerts);
+    });
 
     // Démarrer le timer pour simuler les mises à jour des capteurs
     _startUpdateTimer();
-  }
-
-  // Charger les données des capteurs depuis SharedPreferences
-  Future<void> _loadSensorData() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final sensorDataString = prefs.getString(_sensorDataKey);
-
-      if (sensorDataString != null) {
-        final sensorDataMap =
-            jsonDecode(sensorDataString) as Map<String, dynamic>;
-        _lastSensorData = SensorData.fromJson(sensorDataMap);
-        _sensorDataStreamController.add(_lastSensorData);
-      }
-    } catch (e) {
-      print('Erreur lors du chargement des données de capteurs: $e');
-    }
-  }
-
-  // Enregistrer les données des capteurs dans SharedPreferences
-  Future<void> _saveSensorData() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _sensorDataKey,
-        jsonEncode(_lastSensorData.toJson()),
-      );
-    } catch (e) {
-      print('Erreur lors de l\'enregistrement des données de capteurs: $e');
-    }
-  }
-
-  // Charger les alertes depuis SharedPreferences
-  Future<void> _loadAlerts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final alertsString = prefs.getString(_alertsKey);
-
-      if (alertsString != null) {
-        final alertsList = jsonDecode(alertsString) as List;
-        _alerts = alertsList.map((item) => Alert.fromJson(item)).toList();
-        _alertsStreamController.add(_alerts);
-      }
-    } catch (e) {
-      print('Erreur lors du chargement des alertes: $e');
-    }
-  }
-
-  // Enregistrer les alertes dans SharedPreferences
-  Future<void> _saveAlerts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final alertsJson = _alerts.map((alert) => alert.toJson()).toList();
-      await prefs.setString(_alertsKey, jsonEncode(alertsJson));
-    } catch (e) {
-      print('Erreur lors de l\'enregistrement des alertes: $e');
-    }
   }
 
   // Démarrer le timer pour simuler les mises à jour des capteurs
@@ -160,9 +118,8 @@ class SensorService {
     // Vérifier si une alerte doit être générée
     _checkAlertConditions();
 
-    // Enregistrer les données et les envoyer aux écouteurs
-    _saveSensorData();
-    _sensorDataStreamController.add(_lastSensorData);
+    // Enregistrer les données dans Firebase
+    _firebaseService.saveSensorData(_lastSensorData);
   }
 
   // Vérifier si une alerte doit être générée
@@ -206,9 +163,7 @@ class SensorService {
           description:
               'Température: ${_lastSensorData.temperature.toStringAsFixed(1)}°C',
           timestamp: now,
-          type:
-              AlertType
-                  .temperature, // Utilisation du type existant le plus proche
+          type: AlertType.temperature,
         ),
       );
     }
@@ -222,8 +177,7 @@ class SensorService {
           description:
               'Niveau d\'humidité: ${_lastSensorData.humidity.toStringAsFixed(1)}%',
           timestamp: now,
-          type:
-              AlertType.humidity, // Utilisation du type existant le plus proche
+          type: AlertType.humidity,
         ),
       );
     }
@@ -231,41 +185,18 @@ class SensorService {
 
   // Ajouter une alerte à la liste
   void _addAlert(Alert alert) {
-    _alerts.insert(0, alert);
-
-    // Limiter le nombre d'alertes stockées
-    if (_alerts.length > 50) {
-      _alerts = _alerts.sublist(0, 50);
-    }
-
-    _saveAlerts();
-    _alertsStreamController.add(_alerts);
+    // Sauvegarder l'alerte dans Firebase
+    _firebaseService.saveAlert(alert);
   }
 
   // Marquer une alerte comme lue
   Future<void> markAlertAsRead(String alertId) async {
-    final alertIndex = _alerts.indexWhere((alert) => alert.id == alertId);
-    if (alertIndex != -1) {
-      final updatedAlert = Alert(
-        id: _alerts[alertIndex].id,
-        title: _alerts[alertIndex].title,
-        description: _alerts[alertIndex].description,
-        timestamp: _alerts[alertIndex].timestamp,
-        type: _alerts[alertIndex].type,
-        isRead: true,
-      );
-
-      _alerts[alertIndex] = updatedAlert;
-      await _saveAlerts();
-      _alertsStreamController.add(_alerts);
-    }
+    await _firebaseService.markAlertAsRead(alertId);
   }
 
   // Effacer toutes les alertes
   Future<void> clearAllAlerts() async {
-    _alerts = [];
-    await _saveAlerts();
-    _alertsStreamController.add(_alerts);
+    await _firebaseService.clearAllAlerts();
   }
 
   // Obtenir la dernière données des capteurs
@@ -301,6 +232,8 @@ class SensorService {
   // Disposer des ressources
   void dispose() {
     _updateTimer?.cancel();
+    _sensorDataSubscription?.cancel();
+    _alertsSubscription?.cancel();
     _sensorDataStreamController.close();
     _alertsStreamController.close();
   }

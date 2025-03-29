@@ -5,7 +5,7 @@ import '../models/sensor_data_model.dart';
 import './notifications_screen.dart';
 import './settings_screen.dart';
 import '../services/auth_service.dart';
-import '../services/sensor_service.dart';
+import '../services/sensor_firebase_service.dart';
 import '../screens/login_screen.dart';
 import '../screens/user_management_screen.dart';
 import '../widgets/fire_detection_background.dart';
@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen>
   int _selectedIndex = 0;
   bool _isAdmin = false;
   final AuthService _authService = AuthService();
-  final SensorService _sensorService = SensorService();
+  final SensorFirebaseService _sensorService = SensorFirebaseService();
   late StreamSubscription<SensorData> _sensorSubscription;
 
   // Pour les graphiques
