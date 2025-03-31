@@ -4,6 +4,7 @@ class SensorData {
   final double smoke;
   final double co2; // Renommé de gas à co2
   final bool isAlarmActive;
+  final DateTime timestamp;
 
   SensorData({
     required this.temperature,
@@ -11,6 +12,7 @@ class SensorData {
     required this.smoke,
     required this.co2, // Renommé de gas à co2
     required this.isAlarmActive,
+    required this.timestamp,
   });
 
   factory SensorData.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,9 @@ class SensorData {
       smoke: json['smoke']?.toDouble() ?? 0.0,
       co2: json['co2']?.toDouble() ?? 0.0, // Renommé de gas à co2
       isAlarmActive: json['isAlarmActive'] ?? false,
+      timestamp: DateTime.parse(
+        json['timestamp'] ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 
@@ -30,6 +35,7 @@ class SensorData {
       'smoke': smoke,
       'co2': co2, // Renommé de gas à co2
       'isAlarmActive': isAlarmActive,
+      'DateTime': timestamp.toIso8601String(),
     };
   }
 }

@@ -53,6 +53,7 @@ dependencies:
   fl_chart: ^0.65.0
   flutter_rating_bar: ^4.0.1
   firebase_database: ^11.3.4
+  tflite_flutter: ^0.11.0
 
 dev_dependencies:
   flutter_test:
