@@ -47,6 +47,8 @@ class Alert {
   final DateTime timestamp;
   final AlertType type;
   final bool isRead;
+  final String? commentId; // ID du commentaire associé si applicable
+  final String? adminResponse; // Réponse de l'administrateur
 
   Alert({
     required this.id,
@@ -55,6 +57,8 @@ class Alert {
     required this.timestamp,
     required this.type,
     this.isRead = false,
+    this.commentId,
+    this.adminResponse,
   });
 
   factory Alert.fromJson(Map<String, dynamic> json) {
@@ -70,6 +74,8 @@ class Alert {
         orElse: () => AlertType.info,
       ),
       isRead: json['isRead'] ?? false,
+      commentId: json['commentId'],
+      adminResponse: json['adminResponse'],
     );
   }
 
@@ -81,6 +87,8 @@ class Alert {
       'timestamp': timestamp.toIso8601String(),
       'type': type.toString().split('.').last,
       'isRead': isRead,
+      'commentId': commentId,
+      'adminResponse': adminResponse,
     };
   }
 }
@@ -94,4 +102,5 @@ enum AlertType {
   falseAlarm,
   systemFailure,
   info,
-}  // Renommé de gas à co2
+  adminResponse,
+}

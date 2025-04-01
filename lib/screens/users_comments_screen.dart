@@ -17,11 +17,18 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
   bool _isAdmin = false;
   bool _isLoading = true;
   String _filterValue = 'Tous';
+  final TextEditingController _responseController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _checkAdminStatus();
+  }
+
+  @override
+  void dispose() {
+    _responseController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkAdminStatus() async {
@@ -101,6 +108,74 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
     }
   }
 
+  // Nouvelle méthode pour répondre à un commentaire
+  Future<void> _respondToComment(
+    String commentId,
+    String userEmail,
+    String userName,
+    String subject,
+  ) async {
+    _responseController.clear();
+    final result = await showDialog<String>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Répondre à $userName'),
+            content: TextField(
+              controller: _responseController,
+              decoration: InputDecoration(
+                hintText: 'Votre réponse...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 5,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('Annuler'),
+              ),
+              TextButton(
+                onPressed:
+                    () => Navigator.of(context).pop(_responseController.text),
+                child: Text('Envoyer'),
+              ),
+            ],
+          ),
+    );
+
+    if (result != null && result.trim().isNotEmpty) {
+      // Mettre à jour le commentaire avec la réponse
+      await _firestore.collection('user_comments').doc(commentId).update({
+        'adminResponse': result,
+        'responseDate': FieldValue.serverTimestamp(),
+        'status': 'résolu', // Optionnel: marquer comme résolu automatiquement
+      });
+
+      // Créer une notification pour l'utilisateur
+      final notificationId =
+          _firestore.collection('user_notifications').doc().id;
+      await _firestore
+          .collection('user_notifications')
+          .doc(notificationId)
+          .set({
+            'id': notificationId,
+            'userEmail': userEmail,
+            'title': 'Réponse à: $subject',
+            'description': result,
+            'timestamp': FieldValue.serverTimestamp(),
+            'type': 'adminResponse',
+            'isRead': false,
+            'commentId': commentId,
+          });
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Réponse envoyée avec succès')));
+      }
+    }
+  }
+
   Color _getStatusColor(String status) {
     switch (status) {
       case 'non_lu':
@@ -159,7 +234,29 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
           onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
         ),
         actions: [
-          // Vos actions existantes
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              setState(() {
+                _filterValue = value;
+              });
+            },
+            itemBuilder:
+                (context) => [
+                  PopupMenuItem(value: 'Tous', child: Text('Tous')),
+                  PopupMenuItem(value: 'non_lu', child: Text('Non lus')),
+                  PopupMenuItem(value: 'en_cours', child: Text('En cours')),
+                  PopupMenuItem(value: 'résolu', child: Text('Résolus')),
+                ],
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Text('Filtre: $_filterValue'),
+                  Icon(Icons.arrow_drop_down),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
       drawer: Drawer(
@@ -169,10 +266,8 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
             DrawerHeader(
               decoration: BoxDecoration(color: Colors.deepOrange),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.center, // Centrer horizontalement
-                mainAxisAlignment:
-                    MainAxisAlignment.center, // Centrer verticalement
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircleAvatar(
                     backgroundColor: Colors.white,
@@ -305,6 +400,8 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
               var userEmail = commentData['userEmail'] ?? 'Email inconnu';
               var timestamp = commentData['timestamp'] as Timestamp?;
               var status = commentData['status'] ?? 'non_lu';
+              var adminResponse = commentData['adminResponse'];
+              var responseDate = commentData['responseDate'] as Timestamp?;
 
               return Card(
                 margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -330,6 +427,14 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
                     children: [
                       Text('De: $userName'),
                       Text('Date: ${_formatDate(timestamp)}'),
+                      if (adminResponse != null)
+                        Text(
+                          'Répondu',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                     ],
                   ),
                   children: [
@@ -362,10 +467,78 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
                             ),
                             child: Text(message),
                           ),
+                          if (adminResponse != null) ...[
+                            SizedBox(height: 16),
+                            Text(
+                              'Votre réponse:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 4),
+                            Container(
+                              padding: EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.deepOrange.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(adminResponse),
+                                  if (responseDate != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8.0),
+                                      child: Text(
+                                        'Envoyé le: ${_formatDate(responseDate)}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
                           SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
+                              // Bouton de réponse
+                              if (adminResponse == null)
+                                OutlinedButton.icon(
+                                  icon: Icon(Icons.reply),
+                                  label: Text('Répondre'),
+                                  onPressed:
+                                      () => _respondToComment(
+                                        commentId,
+                                        userEmail,
+                                        userName,
+                                        subject,
+                                      ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.deepOrange,
+                                  ),
+                                ),
+                              if (adminResponse != null)
+                                OutlinedButton.icon(
+                                  icon: Icon(Icons.edit),
+                                  label: Text('Modifier la réponse'),
+                                  onPressed:
+                                      () => _respondToComment(
+                                        commentId,
+                                        userEmail,
+                                        userName,
+                                        subject,
+                                      ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.deepOrange,
+                                  ),
+                                ),
+                              SizedBox(width: 8),
                               // Status dropdown
                               DropdownButton<String>(
                                 value: status,
@@ -402,7 +575,7 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
                                       );
                                     }).toList(),
                               ),
-                              SizedBox(width: 16),
+                              SizedBox(width: 8),
                               // Delete button
                               IconButton(
                                 icon: Icon(Icons.delete, color: Colors.red),
