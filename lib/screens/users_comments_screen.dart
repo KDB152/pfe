@@ -523,21 +523,6 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
                                     foregroundColor: Colors.deepOrange,
                                   ),
                                 ),
-                              if (adminResponse != null)
-                                OutlinedButton.icon(
-                                  icon: Icon(Icons.edit),
-                                  label: Text('Modifier la réponse'),
-                                  onPressed:
-                                      () => _respondToComment(
-                                        commentId,
-                                        userEmail,
-                                        userName,
-                                        subject,
-                                      ),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.deepOrange,
-                                  ),
-                                ),
                               SizedBox(width: 8),
                               // Status dropdown
                               DropdownButton<String>(

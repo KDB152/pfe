@@ -144,45 +144,7 @@ class _HelpScreenState extends State<HelpScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section FAQ
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Questions fréquentes',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFAQItem(
-                      'Comment fonctionne le système de détection d\'incendie?',
-                      'Notre système utilise des capteurs IoT avancés pour détecter la fumée, la chaleur et le CO2. En cas de danger, vous recevez une alerte immédiate sur votre téléphone.',
-                    ),
-                    _buildFAQItem(
-                      'Que faire si je reçois une alerte?',
-                      'Vérifiez d\'abord la situation si possible sans vous mettre en danger. Si un incendie est confirmé, évacuez immédiatement et appelez les pompiers au 18 ou 112.',
-                    ),
-                    _buildFAQItem(
-                      'Comment ajouter un nouveau capteur?',
-                      'Dans l\'écran principal, appuyez sur "Ajouter un capteur" et suivez les instructions pour connecter votre nouveau capteur au réseau WiFi.',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
             const SizedBox(height: 24),
-
-            // Section Contact
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(

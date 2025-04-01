@@ -573,6 +573,13 @@ class _HomeScreenState extends State<HomeScreen>
             },
           ),
           ListTile(
+            leading: Icon(Icons.videocam, color: Colors.deepOrange),
+            title: Text('Visualiser le local'),
+            onTap: () {
+              Navigator.pushNamed(context, '/live-view');
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.settings),
             title: const Text('Paramètres'),
             onTap: () {
