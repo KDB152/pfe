@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pfe/widgets/fire_detection_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
+import '../utils/constants.dart'; // Importer les constantes
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
+import '../widgets/fire_detection_background.dart';
 import '../screens/forgot_password_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/home_screen.dart';
@@ -193,225 +194,277 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final double contentPadding = AppSizes.contentPadding(context);
+    final double logoSize = AppSizes.width(context, 0.25); // 25% de la largeur
+    final double spacingLarge = AppSizes.height(
+      context,
+      0.03,
+    ); // 3% de la hauteur
+    final double spacingMedium = AppSizes.height(
+      context,
+      0.02,
+    ); // 2% de la hauteur
+    final double spacingSmall = AppSizes.height(
+      context,
+      0.01,
+    ); // 1% de la hauteur
+
     return Scaffold(
       body: FireDetectionBackground(
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(height: 20),
-                  // Logo et titre
-                  Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.deepOrange.shade50,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Icon(
-                              Icons.local_fire_department,
-                              color: const Color.fromARGB(255, 255, 0, 0),
-                              size: 70,
+          child: Center(
+            // Centrer tout le contenu
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(contentPadding),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(height: spacingLarge),
+
+                    // Logo et titre - Centré et adaptatif
+                    Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: logoSize,
+                            height: logoSize,
+                            decoration: BoxDecoration(
+                              color: Colors.deepOrange.shade50,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Icon(
+                                Icons.local_fire_department,
+                                color: const Color.fromARGB(255, 255, 0, 0),
+                                size:
+                                    logoSize * 0.7, // 70% de la taille du logo
+                              ),
                             ),
                           ),
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Détecteur Incendie',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: const Color.fromARGB(255, 255, 0, 0),
+                          SizedBox(height: spacingMedium),
+                          Text(
+                            'Détecteur Incendie',
+                            style: TextStyle(
+                              fontSize: AppSizes.titleFontSize(context),
+                              fontWeight: FontWeight.bold,
+                              color: const Color.fromARGB(255, 255, 0, 0),
+                            ),
                           ),
+                          SizedBox(height: spacingSmall),
+                          Text(
+                            'Restez en sécurité grâce à la détection des incendies',
+                            style: TextStyle(
+                              fontSize: AppSizes.bodyFontSize(context),
+                              color: const Color.fromARGB(255, 187, 183, 183),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: spacingLarge * 1.5),
+
+                    // Titre de la page
+                    Text(
+                      'Se Connecter',
+                      style: TextStyle(
+                        fontSize: AppSizes.titleFontSize(context),
+                        fontWeight: FontWeight.bold,
+                        color: const Color.fromARGB(255, 187, 183, 183),
+                      ),
+                    ),
+                    SizedBox(height: spacingLarge),
+
+                    // Formulaire - Adapté avec des tailles proportionnelles
+                    CustomTextField(
+                      controller: _emailController,
+                      label: 'E-mail',
+                      hint: 'Entrer votre e-mail',
+                      labelStyle: TextStyle(
+                        color: const Color.fromARGB(255, 187, 183, 183),
+                        fontSize: AppSizes.bodyFontSize(context),
+                      ),
+                      prefixIcon: Icons.email_outlined,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Veuillez entrer votre email';
+                        }
+                        if (!RegExp(
+                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                        ).hasMatch(value)) {
+                          return 'Veuillez entrer un email valide';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: spacingMedium),
+                    CustomTextField(
+                      controller: _passwordController,
+                      label: 'Mot de passe',
+                      hint: 'Entrer votre mot de passe',
+                      labelStyle: TextStyle(
+                        color: const Color.fromARGB(255, 187, 183, 183),
+                        fontSize: AppSizes.bodyFontSize(context),
+                      ),
+                      prefixIcon: Icons.lock_outline,
+                      isPassword: true,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Veuillez entrer votre mot de passe';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: spacingSmall),
+
+                    // Remember me & Forgot Password - Adapté
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Transform.scale(
+                              scale:
+                                  1.2, // Légèrement plus grand pour être plus visible
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Checkbox(
+                                  value: _rememberMe,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _rememberMe = value!;
+                                    });
+                                  },
+                                  activeColor: const Color.fromARGB(
+                                    255,
+                                    187,
+                                    183,
+                                    183,
+                                  ),
+                                  checkColor: Colors.white,
+                                  side: const BorderSide(
+                                    color: Color.fromARGB(255, 187, 183, 183),
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Se mémoriser',
+                              style: TextStyle(
+                                color: const Color.fromARGB(255, 187, 183, 183),
+                                fontSize: AppSizes.bodyFontSize(context) * 0.9,
+                              ),
+                            ),
+                          ],
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Restez en sécurité grâce à la détection des incendies ',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: const Color.fromARGB(255, 187, 183, 183),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ForgotPasswordScreen(),
+                              ),
+                            );
+                          },
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: contentPadding * 0.5,
+                              vertical: spacingSmall,
+                            ),
+                          ),
+                          child: Text(
+                            'Mot de passe oublié ?',
+                            style: TextStyle(
+                              color: const Color.fromARGB(255, 187, 183, 183),
+                              fontSize: AppSizes.bodyFontSize(context) * 0.9,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
+                    SizedBox(height: spacingLarge),
 
-                  SizedBox(height: 40),
-
-                  // Titre de la page
-                  Text(
-                    'Se Connecter',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: const Color.fromARGB(255, 187, 183, 183),
-                    ),
-                  ),
-                  SizedBox(height: 24),
-
-                  // Formulaire
-                  CustomTextField(
-                    controller: _emailController,
-                    label: 'E-mail',
-                    hint: 'Entrer votre e-mail',
-                    labelStyle: TextStyle(
-                      color: const Color.fromARGB(255, 187, 183, 183),
-                    ),
-                    prefixIcon: Icons.email_outlined,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Veuillez entrer votre email';
-                      }
-                      if (!RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                      ).hasMatch(value)) {
-                        return 'Veuillez entrer un email valide';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _passwordController,
-                    label: 'Mot de passe',
-                    hint: 'Entrer votre mot de passe',
-                    labelStyle: TextStyle(
-                      color: const Color.fromARGB(255, 187, 183, 183),
-                    ),
-                    prefixIcon: Icons.lock_outline,
-                    isPassword: true,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Veuillez entrer votre mot de passe';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 8),
-
-                  // Remember me & Forgot Password
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: Checkbox(
-                              value: _rememberMe,
-                              onChanged: (value) {
-                                setState(() {
-                                  _rememberMe = value!;
-                                });
-                              },
-                              activeColor: const Color.fromARGB(
-                                255,
-                                187,
-                                183,
-                                183,
-                              ), // Couleur de fond quand coché
-                              checkColor:
-                                  Colors.white, // Couleur de la coche (✓)
-                              side: const BorderSide(
-                                // Bordure personnalisée
-                                color: Color.fromARGB(
-                                  255,
-                                  187,
-                                  183,
-                                  183,
-                                ), // Couleur du cadre
-                                width: 2, // Épaisseur du cadre
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(width: 10),
-                          Text(
-                            'Se mémoriser',
-                            style: TextStyle(
-                              color: const Color.fromARGB(255, 187, 183, 183),
-                            ),
-                          ),
-                        ],
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ForgotPasswordScreen(),
-                            ),
-                          );
-                        },
+                    // Error message
+                    if (_errorMessage.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.only(bottom: spacingMedium),
                         child: Text(
-                          'Mot de passe oublié ?',
+                          _errorMessage,
                           style: TextStyle(
+                            color: const Color.fromARGB(255, 255, 255, 255),
+                            fontSize: AppSizes.bodyFontSize(context),
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+
+                    // Login button - Plus grand et plus visible
+                    SizedBox(
+                      height: AppSizes.buttonHeight(context),
+                      child: CustomButton(
+                        text: 'SE CONNECTER',
+                        isLoading: _isLoading,
+                        onPressed: _login,
+                        textColor: const Color.fromARGB(255, 255, 255, 255),
+                        backgroundColor: const Color.fromARGB(
+                          255,
+                          180,
+                          51,
+                          11,
+                        ).withOpacity(0.8),
+                        textSize: AppSizes.subtitleFontSize(context),
+                      ),
+                    ),
+                    SizedBox(height: spacingLarge),
+
+                    // Register link
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Vous n'avez pas un compte ?",
+                          style: TextStyle(
+                            fontSize: AppSizes.bodyFontSize(context),
                             color: const Color.fromARGB(255, 187, 183, 183),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 24),
-
-                  // Error message
-                  if (_errorMessage.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text(
-                        _errorMessage,
-                        style: TextStyle(
-                          color: const Color.fromARGB(255, 255, 255, 255),
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-
-                  // Login button
-                  CustomButton(
-                    text: 'SE CONNECTER',
-                    isLoading: _isLoading,
-                    onPressed: _login,
-                    textColor: const Color.fromARGB(255, 255, 255, 255),
-                    backgroundColor: Colors.transparent,
-                  ),
-                  SizedBox(height: 24),
-
-                  // Register link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text("Vous n'avez pas un compte ?"),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => RegisterScreen(),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => RegisterScreen(),
+                              ),
+                            );
+                          },
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: contentPadding * 0.5,
+                              vertical: spacingSmall,
                             ),
-                          );
-                        },
-                        child: Text(
-                          'Créer un compte',
-                          style: TextStyle(
-                            color: const Color.fromARGB(255, 212, 211, 211),
+                          ),
+                          child: Text(
+                            'Créer un compte',
+                            style: TextStyle(
+                              color: const Color.fromARGB(255, 212, 211, 211),
+                              fontSize: AppSizes.bodyFontSize(context),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                    SizedBox(height: spacingLarge),
+                  ],
+                ),
               ),
             ),
           ),
