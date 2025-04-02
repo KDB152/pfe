@@ -728,7 +728,7 @@ class _HomeScreenState extends State<HomeScreen>
                       Text(
                         _authService.getCurrentUserEmail(),
                         style: const TextStyle(
-                          color: Color.fromARGB(255, 77, 74, 74),
+                          color: Color.fromARGB(255, 185, 182, 182),
                         ),
                       ),
                     ],

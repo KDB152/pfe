@@ -85,6 +85,14 @@ class _CustomTextFieldState extends State<CustomTextField> {
             ),
             contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
           ),
+          style: TextStyle(
+            color: const Color.fromARGB(
+              207,
+              117,
+              89,
+              89,
+            ), // Définir explicitement la couleur du texte saisi en noir
+          ),
         ),
       ],
     );

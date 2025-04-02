@@ -33,34 +33,39 @@ class _FireDetectionBackgroundState extends State<FireDetectionBackground>
   @override
   Widget build(BuildContext context) {
     return Stack(
+      fit: StackFit.expand,
       children: [
-        // Base gradient background
-        AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFF0F1A30), // Bleu foncé en haut
-                    Color(0xFF1F2B50), // Bleu moyen
-                    Color(0xFF472D32), // Transition
-                    Color(0xFF842E31), // Rouge foncé
-                    Color(0xFFF25A3C).withOpacity(0.85), // Orange-rouge en bas
-                  ],
-                  stops: [
-                    0.0,
-                    0.3,
-                    0.5 + 0.05 * math.sin(_controller.value * math.pi * 2),
-                    0.7,
-                    1.0,
-                  ],
+        // Base gradient background - Utilisez Positioned.fill pour qu'il remplisse tout l'espace
+        Positioned.fill(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF0F1A30), // Bleu foncé en haut
+                      Color(0xFF1F2B50), // Bleu moyen
+                      Color(0xFF472D32), // Transition
+                      Color(0xFF842E31), // Rouge foncé
+                      Color(
+                        0xFFF25A3C,
+                      ).withOpacity(0.85), // Orange-rouge en bas
+                    ],
+                    stops: [
+                      0.0,
+                      0.3,
+                      0.5 + 0.05 * math.sin(_controller.value * math.pi * 2),
+                      0.7,
+                      1.0,
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
 
         // House with fire illustration (using CustomPaint)
@@ -114,8 +119,7 @@ class _FireDetectionBackgroundState extends State<FireDetectionBackground>
           ),
         ),
 
-        // The actual content
-        widget.child,
+        Positioned.fill(child: widget.child),
       ],
     );
   }

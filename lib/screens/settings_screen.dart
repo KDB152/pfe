@@ -51,6 +51,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Paramètres'),
         backgroundColor: Colors.deepOrange,
@@ -61,6 +62,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: CircularProgressIndicator(color: Colors.deepOrange),
               )
               : SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

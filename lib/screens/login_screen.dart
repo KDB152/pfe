@@ -210,11 +210,13 @@ class _LoginScreenState extends State<LoginScreen> {
     ); // 1% de la hauteur
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: FireDetectionBackground(
         child: SafeArea(
           child: Center(
             // Centrer tout le contenu
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsets.all(contentPadding),
               child: Form(
                 key: _formKey,
@@ -255,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           SizedBox(height: spacingSmall),
                           Text(
-                            'Restez en sécurité grâce à la détection des incendies',
+                            'Restez en sécurité grâce à la détection \n des incendies',
                             style: TextStyle(
                               fontSize: AppSizes.bodyFontSize(context),
                               color: const Color.fromARGB(255, 187, 183, 183),

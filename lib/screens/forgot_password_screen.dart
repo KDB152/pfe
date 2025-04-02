@@ -82,12 +82,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(
           'Mot de passe oublié',
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: const Color.fromARGB(255, 168, 28, 28),
+        backgroundColor: const Color.fromARGB(164, 6, 0, 32),
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
@@ -99,6 +100,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       body: FireDetectionBackground(
         child: SafeArea(
           child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: EdgeInsets.all(16.0),
             child: Form(
               key: _formKey,
@@ -171,7 +173,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     isLoading: _isLoading,
                     onPressed: _resetPassword,
 
-                    backgroundColor: const Color.fromARGB(216, 212, 46, 46),
+                    backgroundColor: const Color.fromARGB(167, 59, 55, 55),
                   ),
                 ],
               ),
