@@ -70,46 +70,7 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
     }
   }
 
-  Future<void> _deleteComment(String commentId) async {
-    // Afficher une boîte de dialogue de confirmation
-    bool confirm =
-        await showDialog(
-          context: context,
-          builder:
-              (context) => AlertDialog(
-                title: Text('Confirmer la suppression'),
-                content: Text(
-                  'Êtes-vous sûr de vouloir supprimer ce commentaire ?',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: Text('Annuler'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: Text(
-                      'Supprimer',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  ),
-                ],
-              ),
-        ) ??
-        false;
-
-    if (confirm) {
-      await _firestore.collection('user_comments').doc(commentId).delete();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Commentaire supprimé avec succès')),
-        );
-      }
-    }
-  }
-
-  // Nouvelle méthode pour répondre à un commentaire
+  // Modifiez la méthode _respondToComment pour garder trace de toutes les réponses
   Future<void> _respondToComment(
     String commentId,
     String userEmail,
@@ -145,11 +106,41 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
     );
 
     if (result != null && result.trim().isNotEmpty) {
-      // Mettre à jour le commentaire avec la réponse
+      // Récupérer le document commentaire actuel
+      DocumentSnapshot commentDoc =
+          await _firestore.collection('user_comments').doc(commentId).get();
+      var commentData = commentDoc.data() as Map<String, dynamic>;
+
+      // Récupérer l'historique de conversation existant ou créer un nouveau
+      List<Map<String, dynamic>> conversations = [];
+      if (commentData.containsKey('conversations')) {
+        conversations = List<Map<String, dynamic>>.from(
+          commentData['conversations'],
+        );
+      } else {
+        // Ajouter le message initial de l'utilisateur comme premier élément de la conversation
+        conversations.add({
+          'sender': 'user',
+          'message': commentData['message'],
+          'timestamp': commentData['timestamp'],
+        });
+      }
+
+      // Ajouter la nouvelle réponse à la conversation
+      conversations.add({
+        'sender': 'admin',
+        'message': result,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      // Mettre à jour le commentaire avec la réponse et l'historique des conversations
       await _firestore.collection('user_comments').doc(commentId).update({
-        'adminResponse': result,
-        'responseDate': FieldValue.serverTimestamp(),
+        'adminResponse': result, // Conserver pour la compatibilité
+        'responseDate':
+            FieldValue.serverTimestamp(), // Conserver pour la compatibilité
+        'conversations': conversations,
         'status': 'résolu', // Optionnel: marquer comme résolu automatiquement
+        'lastUpdateTimestamp': FieldValue.serverTimestamp(),
       });
 
       // Créer une notification pour l'utilisateur
@@ -173,6 +164,149 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Réponse envoyée avec succès')));
+      }
+    }
+  }
+
+  // Ajoutez cette méthode pour afficher l'historique des conversations
+  Widget _buildConversationHistory(Map<String, dynamic> commentData) {
+    if (!commentData.containsKey('conversations')) {
+      // Si pas d'historique de conversation, utiliser le format initial (avant modification)
+      var message = commentData['message'] ?? '';
+      var adminResponse = commentData['adminResponse'];
+      var responseDate = commentData['responseDate'] as Timestamp?;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Message initial de l'utilisateur
+          _buildMessageBubble(
+            message: message,
+            timestamp: commentData['timestamp'] as Timestamp?,
+            isAdmin: false,
+          ),
+
+          // Réponse de l'admin si elle existe
+          if (adminResponse != null)
+            _buildMessageBubble(
+              message: adminResponse,
+              timestamp: responseDate,
+              isAdmin: true,
+            ),
+        ],
+      );
+    }
+
+    // Sinon, afficher l'historique complet des conversations
+    List<Map<String, dynamic>> conversations = List<Map<String, dynamic>>.from(
+      commentData['conversations'],
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children:
+          conversations.map((conversation) {
+            bool isAdmin = conversation['sender'] == 'admin';
+            String message = conversation['message'] ?? '';
+            Timestamp? timestamp;
+            if (conversation['timestamp'] is Timestamp) {
+              timestamp = conversation['timestamp'];
+            }
+
+            return _buildMessageBubble(
+              message: message,
+              timestamp: timestamp,
+              isAdmin: isAdmin,
+            );
+          }).toList(),
+    );
+  }
+
+  // Méthode helper pour créer une bulle de message
+  Widget _buildMessageBubble({
+    required String message,
+    required Timestamp? timestamp,
+    required bool isAdmin,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(
+        top: 8,
+        bottom: 8,
+        left: isAdmin ? 32 : 0,
+        right: isAdmin ? 0 : 32,
+      ),
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color:
+            isAdmin ? Colors.deepOrange.withOpacity(0.1) : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(12),
+        border:
+            isAdmin
+                ? Border.all(color: Colors.deepOrange.withOpacity(0.3))
+                : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isAdmin ? 'Admin' : 'Utilisateur',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: isAdmin ? Colors.deepOrange : Colors.black87,
+                ),
+              ),
+              Text(
+                _formatDate(timestamp),
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          SizedBox(height: 4),
+          Text(message),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteComment(String commentId) async {
+    // Afficher une boîte de dialogue de confirmation
+    bool confirm =
+        await showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: Text('Confirmer la suppression'),
+                content: Text(
+                  'Êtes-vous sûr de vouloir supprimer ce commentaire ?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text('Annuler'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: Text(
+                      'Supprimer',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
+
+    if (confirm) {
+      await _firestore.collection('user_comments').doc(commentId).delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Commentaire supprimé avec succès')),
+        );
       }
     }
   }
@@ -456,59 +590,11 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
                           ),
                           SizedBox(height: 8),
                           Text(
-                            'Message:',
+                            'Conversation:',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           SizedBox(height: 4),
-                          Container(
-                            padding: EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color.fromARGB(255, 129, 103, 103),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(message),
-                          ),
-                          if (adminResponse != null) ...[
-                            SizedBox(height: 16),
-                            Text(
-                              'Votre réponse:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            SizedBox(height: 4),
-                            Container(
-                              padding: EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 129, 103, 103),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Colors.deepOrange.withOpacity(0.3),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(adminResponse),
-                                  if (responseDate != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8.0),
-                                      child: Text(
-                                        'Envoyé le: ${_formatDate(responseDate)}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: const Color.fromARGB(
-                                            255,
-                                            214,
-                                            202,
-                                            202,
-                                          ),
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
+                          _buildConversationHistory(commentData),
                           SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,

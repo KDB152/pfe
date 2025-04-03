@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
+import 'package:intl/intl.dart';
 
 class HelpScreen extends StatefulWidget {
   const HelpScreen({Key? key}) : super(key: key);
@@ -52,6 +53,195 @@ class _HelpScreenState extends State<HelpScreen> {
         });
       }
     }
+  }
+
+  // Ajoutez cette méthode dans la classe _HelpScreenState
+  Widget _buildCommentHistory() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return SizedBox.shrink();
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Historique de vos demandes',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream:
+                  FirebaseFirestore.instance
+                      .collection('user_comments')
+                      .where('userId', isEqualTo: currentUser.uid)
+                      .orderBy('timestamp', descending: true)
+                      .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: CircularProgressIndicator(color: Colors.deepOrange),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text('Vous n\'avez pas encore envoyé de demande'),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    var doc = snapshot.data!.docs[index];
+                    var data = doc.data() as Map<String, dynamic>;
+
+                    return _buildConversationItem(data, doc.id);
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Méthode pour construire un élément de conversation
+  Widget _buildConversationItem(Map<String, dynamic> data, String docId) {
+    String subject = data['subject'] ?? 'Sans sujet';
+    String message = data['message'] ?? '';
+    Timestamp? timestamp = data['timestamp'];
+    String status = data['status'] ?? 'non_lu';
+    String statusText =
+        status == 'non_lu'
+            ? 'Non lu'
+            : (status == 'en_cours' ? 'En cours' : 'Résolu');
+    String? adminResponse = data['adminResponse'];
+    Timestamp? responseDate = data['responseDate'];
+
+    Color statusColor;
+    switch (status) {
+      case 'non_lu':
+        statusColor = Colors.red;
+        break;
+      case 'en_cours':
+        statusColor = Colors.orange;
+        break;
+      case 'résolu':
+        statusColor = Colors.green;
+        break;
+      default:
+        statusColor = Colors.grey;
+    }
+
+    return Card(
+      margin: EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: ExpansionTile(
+        leading: Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+        ),
+        title: Text(subject, style: TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(
+          '${_formatDate(timestamp)} • ${statusText}',
+          style: TextStyle(fontSize: 12),
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Message de l'utilisateur
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(message, style: TextStyle(fontSize: 14)),
+                      SizedBox(height: 4),
+                      Text(
+                        'Envoyé le ${_formatDate(timestamp)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Réponse de l'administrateur (si elle existe)
+                if (adminResponse != null) ...[
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text(
+                          'Réponse',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ),
+                      Expanded(child: Divider()),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.deepOrange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.deepOrange.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(adminResponse, style: TextStyle(fontSize: 14)),
+                        SizedBox(height: 4),
+                        Text(
+                          'Répondu le ${_formatDate(responseDate)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.deepOrange.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Ajoutez cette méthode de formatage de date
+  String _formatDate(Timestamp? timestamp) {
+    if (timestamp == null) return 'Date inconnue';
+    return DateFormat('dd/MM/yyyy à HH:mm').format(timestamp.toDate());
   }
 
   Future<void> _submitComment() async {
@@ -145,6 +335,7 @@ class _HelpScreenState extends State<HelpScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 24),
+            _buildCommentHistory(),
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
