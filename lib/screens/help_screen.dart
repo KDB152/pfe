@@ -181,7 +181,7 @@ class _HelpScreenState extends State<HelpScreen> {
                 ),
                 SizedBox(height: 8),
 
-                // Utilisation de la nouvelle méthode pour afficher les conversations
+                // Utiliser la méthode _buildConversationHistory ici
                 _buildConversationHistory(data),
 
                 // Statut et actions au bas
@@ -371,27 +371,6 @@ class _HelpScreenState extends State<HelpScreen> {
         }
       }
     }
-  }
-
-  // Rating widget
-  Widget _buildRatingBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(5, (index) {
-        return IconButton(
-          icon: Icon(
-            index < _rating ? Icons.star : Icons.star_border,
-            color: Colors.amber,
-            size: 30,
-          ),
-          onPressed: () {
-            setState(() {
-              _rating = index + 1;
-            });
-          },
-        );
-      }),
-    );
   }
 
   @override
