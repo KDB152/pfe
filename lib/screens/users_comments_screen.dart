@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
@@ -462,7 +463,7 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
                           Container(
                             padding: EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
+                              color: const Color.fromARGB(255, 129, 103, 103),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(message),
@@ -477,7 +478,7 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
                             Container(
                               padding: EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.orange.shade50,
+                                color: const Color.fromARGB(255, 129, 103, 103),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: Colors.deepOrange.withOpacity(0.3),
@@ -494,7 +495,12 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
                                         'Envoyé le: ${_formatDate(responseDate)}',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.grey[600],
+                                          color: const Color.fromARGB(
+                                            255,
+                                            214,
+                                            202,
+                                            202,
+                                          ),
                                           fontStyle: FontStyle.italic,
                                         ),
                                       ),
