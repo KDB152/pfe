@@ -17,6 +17,7 @@ class _HelpScreenState extends State<HelpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _subjectController = TextEditingController();
   final _messageController = TextEditingController();
+  final _replyController = TextEditingController();
   final UserService _userService = UserService();
   bool _isLoading = false;
   String _userName = '';
@@ -26,7 +27,7 @@ class _HelpScreenState extends State<HelpScreen> {
   @override
   void initState() {
     super.initState();
-    print("HelpScreen initialized"); // Add this
+    print("HelpScreen initialized");
     _loadUserInfo();
   }
 
@@ -34,6 +35,7 @@ class _HelpScreenState extends State<HelpScreen> {
   void dispose() {
     _subjectController.dispose();
     _messageController.dispose();
+    _replyController.dispose();
     super.dispose();
   }
 
@@ -55,7 +57,6 @@ class _HelpScreenState extends State<HelpScreen> {
     }
   }
 
-  // Ajoutez cette méthode dans la classe _HelpScreenState
   Widget _buildCommentHistory() {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return SizedBox.shrink();
@@ -156,6 +157,11 @@ class _HelpScreenState extends State<HelpScreen> {
           '${_formatDate(timestamp)} • ${statusText}',
           style: TextStyle(fontSize: 12),
         ),
+        initiallyExpanded:
+            timestamp != null &&
+            timestamp.toDate().isAfter(
+              DateTime.now().subtract(Duration(minutes: 5)),
+            ),
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -182,7 +188,16 @@ class _HelpScreenState extends State<HelpScreen> {
                 SizedBox(height: 8),
 
                 // Utiliser la méthode _buildConversationHistory ici
-                _buildConversationHistory(data),
+                _buildConversationHistoryView(data),
+
+                // Section pour répondre si le statut est "résolu"
+                if (status == 'résolu' ||
+                    adminResponse != null ||
+                    status == 'en_cours')
+                  SizedBox(height: 16),
+
+                // Permettre de répondre dans tous les cas sauf si le statut est "non_lu"
+                if (status != 'non_lu') _buildReplySection(docId),
 
                 // Statut et actions au bas
                 SizedBox(height: 16),
@@ -206,9 +221,113 @@ class _HelpScreenState extends State<HelpScreen> {
     );
   }
 
-  // Ajoutez cette méthode pour afficher l'historique des conversations
-  Widget _buildConversationHistory(Map<String, dynamic> data) {
-    if (!data.containsKey('conversations')) {
+  Widget _buildReplySection(String docId) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ajouter un message:',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 8),
+        TextField(
+          controller: _replyController,
+          decoration: InputDecoration(
+            hintText: 'Votre réponse...',
+            border: OutlineInputBorder(),
+            suffixIcon: IconButton(
+              icon: Icon(Icons.send, color: Colors.deepOrange),
+              onPressed: () => _sendReply(docId),
+            ),
+          ),
+          maxLines: 3,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _sendReply(String docId) async {
+    if (_replyController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Veuillez entrer un message')));
+      return;
+    }
+
+    try {
+      // D'abord, récupérer le document actuel
+      DocumentSnapshot doc =
+          await FirebaseFirestore.instance
+              .collection('user_comments')
+              .doc(docId)
+              .get();
+
+      if (!doc.exists) {
+        throw Exception("Document introuvable");
+      }
+
+      var data = doc.data() as Map<String, dynamic>;
+      List<Map<String, dynamic>> conversations = [];
+
+      // Si la conversation existe déjà, la récupérer
+      if (data.containsKey('conversations') && data['conversations'] is List) {
+        conversations = List<Map<String, dynamic>>.from(data['conversations']);
+      }
+      // Sinon, créer une nouvelle liste avec les messages existants
+      else {
+        // Ajouter le message initial de l'utilisateur
+        conversations.add({
+          'sender': 'user',
+          'message': data['message'] ?? '',
+          'timestamp': data['timestamp'] ?? Timestamp.now(),
+        });
+
+        // Ajouter la réponse de l'admin si elle existe
+        if (data.containsKey('adminResponse') &&
+            data['adminResponse'] != null) {
+          conversations.add({
+            'sender': 'admin',
+            'message': data['adminResponse'],
+            'timestamp': data['responseDate'] ?? Timestamp.now(),
+          });
+        }
+      }
+
+      // Ajouter le nouveau message de l'utilisateur
+      conversations.add({
+        'sender': 'user',
+        'message': _replyController.text.trim(),
+        'timestamp': Timestamp.now(),
+      });
+
+      // Mettre à jour le document avec la nouvelle conversation
+      await FirebaseFirestore.instance
+          .collection('user_comments')
+          .doc(docId)
+          .update({
+            'conversations': conversations,
+            'status':
+                'en_cours', // Changer le statut en "en cours" après une réponse utilisateur
+          });
+
+      // Vider le champ de texte
+      _replyController.clear();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Message envoyé avec succès')));
+    } catch (e) {
+      print("Erreur lors de l'envoi de la réponse: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur lors de l\'envoi: $e')));
+    }
+  }
+
+  Widget _buildConversationHistoryView(Map<String, dynamic> data) {
+    if (!data.containsKey('conversations') ||
+        !(data['conversations'] is List) ||
+        (data['conversations'] as List).isEmpty) {
       // Si pas d'historique de conversation, utiliser le format initial
       var message = data['message'] ?? '';
       var adminResponse = data['adminResponse'];
@@ -221,11 +340,11 @@ class _HelpScreenState extends State<HelpScreen> {
           _buildMessageBubble(
             message: message,
             timestamp: data['timestamp'] as Timestamp?,
-            isAdmin: false,
+            isAdmin: true,
           ),
 
           // Réponse de l'admin si elle existe
-          if (adminResponse != null)
+          if (adminResponse != null && adminResponse.isNotEmpty)
             _buildMessageBubble(
               message: adminResponse,
               timestamp: responseDate,
@@ -325,15 +444,30 @@ class _HelpScreenState extends State<HelpScreen> {
       try {
         final currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser != null) {
+          // Créer une liste de conversations avec le message initial
+          List<Map<String, dynamic>> conversations = [
+            {
+              'sender': 'user',
+              'message': _messageController.text.trim(),
+              'timestamp': Timestamp.now(),
+            },
+          ];
+
+          // Utiliser un timestamp actuel pour garantir qu'il apparaît immédiatement
+          Timestamp currentTimestamp = Timestamp.now();
+
+          // Ajouter le document avec le timestamp actuel
           await FirebaseFirestore.instance.collection('user_comments').add({
             'userId': currentUser.uid,
             'userName': _userName,
             'userEmail': _userEmail,
             'subject': _subjectController.text.trim(),
             'message': _messageController.text.trim(),
-            'rating': _rating, // Save the rating to Firestore
-            'timestamp': FieldValue.serverTimestamp(),
-            'status': 'non_lu', // Status: non_lu, en_cours, résolu
+            'rating': _rating,
+            'timestamp':
+                currentTimestamp, // Utiliser un timestamp actuel au lieu de serverTimestamp
+            'status': 'non_lu',
+            'conversations': conversations,
           });
 
           // Réinitialiser le formulaire
@@ -453,7 +587,7 @@ class _HelpScreenState extends State<HelpScreen> {
 
             const SizedBox(height: 24),
 
-            // Informations de contact (sans liens actifs)
+            // Informations de contact
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -496,18 +630,6 @@ class _HelpScreenState extends State<HelpScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildFAQItem(String question, String answer) {
-    return ExpansionTile(
-      title: Text(
-        question,
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-      children: [
-        Padding(padding: const EdgeInsets.all(16.0), child: Text(answer)),
-      ],
     );
   }
 }
