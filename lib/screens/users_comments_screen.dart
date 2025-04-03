@@ -70,7 +70,6 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
     }
   }
 
-  // Modifiez la méthode _respondToComment pour garder trace de toutes les réponses
   Future<void> _respondToComment(
     String commentId,
     String userEmail,
@@ -78,92 +77,138 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
     String subject,
   ) async {
     _responseController.clear();
-    final result = await showDialog<String>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Répondre à $userName'),
-            content: TextField(
-              controller: _responseController,
-              decoration: InputDecoration(
-                hintText: 'Votre réponse...',
-                border: OutlineInputBorder(),
+
+    try {
+      // 1. Get user response from dialog
+      final result = await showDialog<String>(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: Text('Répondre à $userName'),
+              content: TextField(
+                controller: _responseController,
+                decoration: InputDecoration(
+                  hintText: 'Votre réponse...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 5,
               ),
-              maxLines: 5,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('Annuler'),
+                ),
+                TextButton(
+                  onPressed:
+                      () => Navigator.of(context).pop(_responseController.text),
+                  child: Text('Envoyer'),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('Annuler'),
-              ),
-              TextButton(
-                onPressed:
-                    () => Navigator.of(context).pop(_responseController.text),
-                child: Text('Envoyer'),
-              ),
-            ],
-          ),
-    );
+      );
 
-    if (result != null && result.trim().isNotEmpty) {
-      // Récupérer le document commentaire actuel
-      DocumentSnapshot commentDoc =
-          await _firestore.collection('user_comments').doc(commentId).get();
-      var commentData = commentDoc.data() as Map<String, dynamic>;
-
-      // Récupérer l'historique de conversation existant ou créer un nouveau
-      List<Map<String, dynamic>> conversations = [];
-      if (commentData.containsKey('conversations')) {
-        conversations = List<Map<String, dynamic>>.from(
-          commentData['conversations'],
-        );
-      } else {
-        // Ajouter le message initial de l'utilisateur comme premier élément de la conversation
-        conversations.add({
-          'sender': 'user',
-          'message': commentData['message'],
-          'timestamp': commentData['timestamp'],
-        });
+      if (result == null || result.trim().isEmpty) {
+        return; // User cancelled or empty response
       }
 
-      // Ajouter la nouvelle réponse à la conversation
-      conversations.add({
-        'sender': 'admin',
-        'message': result,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      // 2. Update only minimal required fields first
+      // This helps isolate which data field is causing the issue
+      try {
+        await _firestore.collection('user_comments').doc(commentId).update({
+          'adminResponse': result,
+          'responseDate': FieldValue.serverTimestamp(),
+          'status': 'résolu',
+        });
 
-      // Mettre à jour le commentaire avec la réponse et l'historique des conversations
-      await _firestore.collection('user_comments').doc(commentId).update({
-        'adminResponse': result, // Conserver pour la compatibilité
-        'responseDate':
-            FieldValue.serverTimestamp(), // Conserver pour la compatibilité
-        'conversations': conversations,
-        'status': 'résolu', // Optionnel: marquer comme résolu automatiquement
-        'lastUpdateTimestamp': FieldValue.serverTimestamp(),
-      });
+        print("Basic update successful");
 
-      // Créer une notification pour l'utilisateur
-      final notificationId =
-          _firestore.collection('user_notifications').doc().id;
-      await _firestore
-          .collection('user_notifications')
-          .doc(notificationId)
-          .set({
-            'id': notificationId,
-            'userEmail': userEmail,
-            'title': 'Réponse à: $subject',
-            'description': result,
-            'timestamp': FieldValue.serverTimestamp(),
-            'type': 'adminResponse',
-            'isRead': false,
-            'commentId': commentId,
+        // 3. If that worked, try creating a notification (separate operation)
+        try {
+          String notificationId =
+              _firestore.collection('user_notifications').doc().id;
+
+          await _firestore
+              .collection('user_notifications')
+              .doc(notificationId)
+              .set({
+                'id': notificationId,
+                'userEmail': userEmail,
+                'title': 'Réponse à: $subject',
+                'description': result,
+                'timestamp': FieldValue.serverTimestamp(),
+                'type': 'adminResponse',
+                'isRead': false,
+                'commentId': commentId,
+              });
+
+          print("Notification created successfully");
+        } catch (notificationError) {
+          print("Notification creation failed: $notificationError");
+          // Continue even if notification fails
+        }
+
+        // 4. Only if previous steps worked, try updating the conversations field
+        // This is likely where the error is occurring
+        try {
+          // Get current document after our initial update
+          DocumentSnapshot commentDoc =
+              await _firestore.collection('user_comments').doc(commentId).get();
+
+          if (!commentDoc.exists) {
+            throw Exception("Comment document not found");
+          }
+
+          // Create a simple conversations array with just two entries
+          List<Map<String, dynamic>> conversations = [];
+
+          // Add original message
+          conversations.add({
+            'sender': 'user',
+            'message':
+                (commentDoc.data() as Map<String, dynamic>)['message'] ?? '',
+            'timestamp':
+                (commentDoc.data() as Map<String, dynamic>)['timestamp'] ??
+                Timestamp.now(),
           });
 
+          // Add admin response
+          conversations.add({
+            'sender': 'admin',
+            'message': result,
+            'timestamp':
+                Timestamp.now(), // Use current time instead of server timestamp
+          });
+
+          // Try to update just the conversations field
+          await _firestore.collection('user_comments').doc(commentId).update({
+            'conversations': conversations,
+          });
+
+          print("Conversations update successful");
+        } catch (conversationsError) {
+          print("Conversations update failed: $conversationsError");
+          // Continue even if this update fails
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Réponse envoyée avec succès')),
+          );
+        }
+      } catch (basicUpdateError) {
+        print("Basic update failed: $basicUpdateError");
+        throw basicUpdateError; // Re-throw for outer catch block
+      }
+    } catch (e) {
+      print("Overall error: $e");
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Réponse envoyée avec succès')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Erreur: ${e.toString().substring(0, e.toString().length > 100 ? 100 : e.toString().length)}',
+            ),
+          ),
+        );
       }
     }
   }
