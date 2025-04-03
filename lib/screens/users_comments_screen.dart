@@ -19,6 +19,7 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
   bool _isLoading = true;
   String _filterValue = 'Tous';
   final TextEditingController _responseController = TextEditingController();
+  final Map<String, TextEditingController> _commentControllers = {};
 
   @override
   void initState() {
@@ -76,128 +77,101 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
     String userName,
     String subject,
   ) async {
-    _responseController.clear();
+    // Obtenir le texte de la réponse
+    String responseText = _responseController.text.trim();
+
+    if (responseText.isEmpty) {
+      return; // Ne rien faire si le texte est vide
+    }
 
     try {
-      // 1. Get user response from dialog
-      final result = await showDialog<String>(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: Text('Répondre à $userName'),
-              content: TextField(
-                controller: _responseController,
-                decoration: InputDecoration(
-                  hintText: 'Votre réponse...',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 5,
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text('Annuler'),
-                ),
-                TextButton(
-                  onPressed:
-                      () => Navigator.of(context).pop(_responseController.text),
-                  child: Text('Envoyer'),
-                ),
-              ],
-            ),
-      );
+      // Effacer le champ de texte après avoir obtenu la réponse
+      _responseController.clear();
 
-      if (result == null || result.trim().isEmpty) {
-        return; // User cancelled or empty response
+      // Récupérer le document actuel pour obtenir les conversations existantes
+      DocumentSnapshot commentDoc =
+          await _firestore.collection('user_comments').doc(commentId).get();
+
+      if (!commentDoc.exists) {
+        throw Exception("Comment document not found");
       }
 
-      // 2. Update only minimal required fields first
-      // This helps isolate which data field is causing the issue
-      try {
-        await _firestore.collection('user_comments').doc(commentId).update({
-          'adminResponse': result,
-          'responseDate': FieldValue.serverTimestamp(),
-          'status': 'résolu',
+      Map<String, dynamic> commentData =
+          commentDoc.data() as Map<String, dynamic>;
+
+      // Préparer la liste des conversations
+      List<Map<String, dynamic>> conversations = [];
+
+      // Si la liste de conversations existe déjà, la récupérer
+      if (commentData.containsKey('conversations') &&
+          commentData['conversations'] is List) {
+        conversations = List<Map<String, dynamic>>.from(
+          commentData['conversations'],
+        );
+      }
+      // Sinon, créer une nouvelle liste avec le message initial
+      else {
+        // Ajouter le message original de l'utilisateur
+        conversations.add({
+          'sender': 'user',
+          'message': commentData['message'] ?? '',
+          'timestamp': commentData['timestamp'] ?? Timestamp.now(),
         });
 
-        print("Basic update successful");
-
-        // 3. If that worked, try creating a notification (separate operation)
-        try {
-          String notificationId =
-              _firestore.collection('user_notifications').doc().id;
-
-          await _firestore
-              .collection('user_notifications')
-              .doc(notificationId)
-              .set({
-                'id': notificationId,
-                'userEmail': userEmail,
-                'title': 'Réponse à: $subject',
-                'description': result,
-                'timestamp': FieldValue.serverTimestamp(),
-                'type': 'adminResponse',
-                'isRead': false,
-                'commentId': commentId,
-              });
-
-          print("Notification created successfully");
-        } catch (notificationError) {
-          print("Notification creation failed: $notificationError");
-          // Continue even if notification fails
-        }
-
-        // 4. Only if previous steps worked, try updating the conversations field
-        // This is likely where the error is occurring
-        try {
-          // Get current document after our initial update
-          DocumentSnapshot commentDoc =
-              await _firestore.collection('user_comments').doc(commentId).get();
-
-          if (!commentDoc.exists) {
-            throw Exception("Comment document not found");
-          }
-
-          // Create a simple conversations array with just two entries
-          List<Map<String, dynamic>> conversations = [];
-
-          // Add original message
-          conversations.add({
-            'sender': 'user',
-            'message':
-                (commentDoc.data() as Map<String, dynamic>)['message'] ?? '',
-            'timestamp':
-                (commentDoc.data() as Map<String, dynamic>)['timestamp'] ??
-                Timestamp.now(),
-          });
-
-          // Add admin response
+        // Ajouter la première réponse admin si elle existe déjà
+        if (commentData.containsKey('adminResponse') &&
+            commentData['adminResponse'] != null) {
           conversations.add({
             'sender': 'admin',
-            'message': result,
-            'timestamp':
-                Timestamp.now(), // Use current time instead of server timestamp
+            'message': commentData['adminResponse'],
+            'timestamp': commentData['responseDate'] ?? Timestamp.now(),
           });
-
-          // Try to update just the conversations field
-          await _firestore.collection('user_comments').doc(commentId).update({
-            'conversations': conversations,
-          });
-
-          print("Conversations update successful");
-        } catch (conversationsError) {
-          print("Conversations update failed: $conversationsError");
-          // Continue even if this update fails
         }
+      }
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Réponse envoyée avec succès')),
-          );
-        }
-      } catch (basicUpdateError) {
-        print("Basic update failed: $basicUpdateError");
-        throw basicUpdateError; // Re-throw for outer catch block
+      // Ajouter la nouvelle réponse admin
+      Timestamp currentTime = Timestamp.now();
+      conversations.add({
+        'sender': 'admin',
+        'message': responseText,
+        'timestamp': currentTime,
+      });
+
+      // Mettre à jour le document avec la nouvelle conversation
+      await _firestore.collection('user_comments').doc(commentId).update({
+        'conversations': conversations,
+        'adminResponse': responseText, // Garder pour compatibilité
+        'responseDate': currentTime, // Garder pour compatibilité
+        'status':
+            'en_cours', // Changer le statut en "en cours" plutôt que "résolu"
+      });
+
+      // Créer une notification pour l'utilisateur
+      try {
+        String notificationId =
+            _firestore.collection('user_notifications').doc().id;
+
+        await _firestore
+            .collection('user_notifications')
+            .doc(notificationId)
+            .set({
+              'id': notificationId,
+              'userEmail': userEmail,
+              'title': 'Réponse à: $subject',
+              'description': responseText,
+              'timestamp': FieldValue.serverTimestamp(),
+              'type': 'adminResponse',
+              'isRead': false,
+              'commentId': commentId,
+            });
+      } catch (notificationError) {
+        print("Notification creation failed: $notificationError");
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Réponse envoyée avec succès')));
       }
     } catch (e) {
       print("Overall error: $e");
@@ -641,26 +615,60 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
                           SizedBox(height: 4),
                           _buildConversationHistory(commentData),
                           SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              // Bouton de réponse
-                              if (adminResponse == null)
-                                OutlinedButton.icon(
-                                  icon: Icon(Icons.reply),
-                                  label: Text('Répondre'),
-                                  onPressed:
-                                      () => _respondToComment(
+
+                          // NOUVEAU - Champ de réponse directement dans l'interface
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.deepOrange.withOpacity(0.3),
+                              ),
+                              color: Colors.white,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _responseController,
+                                    decoration: InputDecoration(
+                                      hintText: 'Votre réponse...',
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                    ),
+                                    maxLines: 1,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.send,
+                                    color: Colors.deepOrange,
+                                  ),
+                                  onPressed: () {
+                                    if (_responseController.text
+                                        .trim()
+                                        .isNotEmpty) {
+                                      _respondToComment(
                                         commentId,
                                         userEmail,
                                         userName,
                                         subject,
-                                      ),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.deepOrange,
-                                  ),
+                                      );
+                                    }
+                                  },
                                 ),
-                              SizedBox(width: 8),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
                               // Status dropdown
                               DropdownButton<String>(
                                 value: status,
