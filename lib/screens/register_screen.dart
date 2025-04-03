@@ -243,7 +243,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     isLoading: _isLoading,
                     onPressed: _register,
 
-                    backgroundColor: const Color.fromARGB(0, 192, 15, 15),
+                    backgroundColor: const Color.fromARGB(129, 223, 64, 2),
                   ),
                   SizedBox(height: 24),
 

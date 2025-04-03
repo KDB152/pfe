@@ -10,6 +10,7 @@ import '../screens/login_screen.dart';
 import '../screens/user_management_screen.dart';
 import '../widgets/fire_detection_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../screens/view_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userEmail;
