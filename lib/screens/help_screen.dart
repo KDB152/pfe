@@ -115,7 +115,6 @@ class _HelpScreenState extends State<HelpScreen> {
     );
   }
 
-  // Méthode pour construire un élément de conversation
   Widget _buildConversationItem(Map<String, dynamic> data, String docId) {
     String subject = data['subject'] ?? 'Sans sujet';
     String message = data['message'] ?? '';
@@ -163,76 +162,149 @@ class _HelpScreenState extends State<HelpScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Message de l'utilisateur
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(message, style: TextStyle(fontSize: 14)),
-                      SizedBox(height: 4),
-                      Text(
-                        'Envoyé le ${_formatDate(timestamp)}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
+                // Informations supplémentaires
+                Row(
+                  children: [
+                    Text(
+                      'Email: ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(_userEmail),
+                  ],
                 ),
+                SizedBox(height: 16),
 
-                // Réponse de l'administrateur (si elle existe)
-                if (adminResponse != null) ...[
-                  SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Text(
-                          'Réponse',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ),
-                      Expanded(child: Divider()),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.deepOrange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.deepOrange.withOpacity(0.3),
+                // Titre de conversation
+                Text(
+                  'Conversation:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+
+                // Utilisation de la nouvelle méthode pour afficher les conversations
+                _buildConversationHistory(data),
+
+                // Statut et actions au bas
+                SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(adminResponse, style: TextStyle(fontSize: 14)),
-                        SizedBox(height: 4),
-                        Text(
-                          'Répondu le ${_formatDate(responseDate)}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
-                            color: Colors.deepOrange.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // Ajoutez cette méthode pour afficher l'historique des conversations
+  Widget _buildConversationHistory(Map<String, dynamic> data) {
+    if (!data.containsKey('conversations')) {
+      // Si pas d'historique de conversation, utiliser le format initial
+      var message = data['message'] ?? '';
+      var adminResponse = data['adminResponse'];
+      var responseDate = data['responseDate'] as Timestamp?;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Message initial de l'utilisateur
+          _buildMessageBubble(
+            message: message,
+            timestamp: data['timestamp'] as Timestamp?,
+            isAdmin: false,
+          ),
+
+          // Réponse de l'admin si elle existe
+          if (adminResponse != null)
+            _buildMessageBubble(
+              message: adminResponse,
+              timestamp: responseDate,
+              isAdmin: true,
+            ),
+        ],
+      );
+    }
+
+    // Sinon, afficher l'historique complet des conversations
+    List<Map<String, dynamic>> conversations = List<Map<String, dynamic>>.from(
+      data['conversations'],
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children:
+          conversations.map((conversation) {
+            bool isAdmin = conversation['sender'] == 'admin';
+            String message = conversation['message'] ?? '';
+            Timestamp? timestamp;
+            if (conversation['timestamp'] is Timestamp) {
+              timestamp = conversation['timestamp'];
+            }
+
+            return _buildMessageBubble(
+              message: message,
+              timestamp: timestamp,
+              isAdmin: isAdmin,
+            );
+          }).toList(),
+    );
+  }
+
+  // Méthode helper pour créer une bulle de message
+  Widget _buildMessageBubble({
+    required String message,
+    required Timestamp? timestamp,
+    required bool isAdmin,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(
+        top: 8,
+        bottom: 8,
+        left: isAdmin ? 32 : 0,
+        right: isAdmin ? 0 : 32,
+      ),
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color:
+            isAdmin ? Colors.deepOrange.withOpacity(0.1) : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(12),
+        border:
+            isAdmin
+                ? Border.all(color: Colors.deepOrange.withOpacity(0.3))
+                : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isAdmin ? 'Admin' : 'Utilisateur',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: isAdmin ? Colors.deepOrange : Colors.black87,
+                ),
+              ),
+              Text(
+                _formatDate(timestamp),
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          SizedBox(height: 4),
+          Text(message),
         ],
       ),
     );
