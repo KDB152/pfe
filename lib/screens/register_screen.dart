@@ -42,12 +42,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       try {
         // Register user
-        UserCredential userCredential = await _authService
-            .registerWithEmailAndPassword(
-              _emailController.text.trim(),
-              _passwordController.text,
-              _usernameController.text.trim(),
-            );
+        await _authService.registerWithEmailAndPassword(
+          _emailController.text.trim(),
+          _passwordController.text,
+          _usernameController.text.trim(),
+        );
 
         // Navigate to email verification screen
         if (mounted) {

@@ -257,11 +257,9 @@ class AuthService {
       User? user = _auth.currentUser;
       if (user == null) throw Exception("Aucun utilisateur connecté");
       await _setUserDeleted(user.uid);
-
-      if (user != null) {
-        // Suppression directe si c'est l'utilisateur actuel
-        await user.delete();
-      } else if (user.email != null) {
+      // Suppression directe si c'est l'utilisateur actuel
+      await user.delete();
+      if (user.email != null) {
         // Suppression par un admin via connexion temporaire
         await _deleteUserByAdmin(user.email!);
       }
@@ -284,11 +282,9 @@ class AuthService {
       User? user = _auth.currentUser;
       if (user == null) throw Exception("Aucun utilisateur connecté");
       await _setUserDeleted(user.uid);
-
-      if (user != null) {
-        // Suppression directe si c'est l'utilisateur actuel
-        await user.delete();
-      } else if (user.email != null) {
+      // Suppression directe si c'est l'utilisateur actuel
+      await user.delete();
+      if (user.email != null) {
         // Suppression par un admin via connexion temporaire
         await _deleteUserByAdmin(user.email!);
       }
