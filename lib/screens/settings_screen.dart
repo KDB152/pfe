@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../screens/login_screen.dart';
-import '../services/user_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String email;
@@ -521,128 +520,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _isLoading = false;
       });
-    }
-  }
-
-  // Nouvelle méthode qui affiche un dialogue pour confirmer la suppression
-  void _showDeleteAccountDialog() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Confirmer la suppression'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Pour confirmer la suppression de votre compte, veuillez entrer votre mot de passe:',
-                  style: TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _deleteAccountPasswordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Mot de passe actuel',
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _deleteAccountPasswordController.clear();
-                },
-                child: const Text('Annuler'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _initiateAccountDeletion(
-                    _deleteAccountPasswordController.text,
-                  );
-                  _deleteAccountPasswordController.clear();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Supprimer'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  // Méthode de suppression de compte mise à jour
-  Future<void> _initiateAccountDeletion(String password) async {
-    if (password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez entrer votre mot de passe')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      User? user = FirebaseAuth.instance.currentUser;
-
-      if (user != null && user.email != null) {
-        // Supprimer directement le compte
-        await user.delete();
-
-        // Supprimer les données associées
-        if (user.uid.isNotEmpty) {
-          await _deleteAccount();
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Compte supprimé avec succès')),
-        );
-        await Future.delayed(const Duration(seconds: 1));
-
-        // Rediriger vers l'écran de connexion
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Utilisateur non connecté')),
-        );
-      }
-    } catch (e) {
-      String errorMessage = 'Erreur lors de la suppression du compte !';
-
-      if (e is FirebaseAuthException) {
-        switch (e.code) {
-          case 'wrong-password':
-            errorMessage =
-                'Les informations d\'identification sont incorrectes';
-            break;
-          case 'requires-recent-login':
-            errorMessage =
-                'Veuillez vous reconnecter pour effectuer cette action';
-            break;
-          case 'invalid-credential':
-            errorMessage = 'Le mot de passe actuel est incorrect !';
-            break;
-          default:
-            errorMessage = 'Erreur: ${e.code}';
-        }
-      }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMessage)));
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 

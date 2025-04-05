@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
@@ -19,7 +18,6 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
   bool _isLoading = true;
   String _filterValue = 'Tous';
   final TextEditingController _responseController = TextEditingController();
-  final Map<String, TextEditingController> _commentControllers = {};
 
   @override
   void initState() {
@@ -549,13 +547,11 @@ class _UsersCommentsScreenState extends State<UsersCommentsScreen> {
                   filteredComments[index].data() as Map<String, dynamic>;
               var commentId = filteredComments[index].id;
               var subject = commentData['subject'] ?? 'Sans sujet';
-              var message = commentData['message'] ?? '';
               var userName = commentData['userName'] ?? 'Utilisateur inconnu';
               var userEmail = commentData['userEmail'] ?? 'Email inconnu';
               var timestamp = commentData['timestamp'] as Timestamp?;
               var status = commentData['status'] ?? 'non_lu';
               var adminResponse = commentData['adminResponse'];
-              var responseDate = commentData['responseDate'] as Timestamp?;
 
               return Card(
                 margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),

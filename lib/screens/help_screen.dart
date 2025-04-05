@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/user_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import 'package:intl/intl.dart';
@@ -18,7 +17,6 @@ class _HelpScreenState extends State<HelpScreen> {
   final _subjectController = TextEditingController();
   final _messageController = TextEditingController();
   final _replyController = TextEditingController();
-  final UserService _userService = UserService();
   bool _isLoading = false;
   String _userName = '';
   String _userEmail = '';
@@ -118,7 +116,6 @@ class _HelpScreenState extends State<HelpScreen> {
 
   Widget _buildConversationItem(Map<String, dynamic> data, String docId) {
     String subject = data['subject'] ?? 'Sans sujet';
-    String message = data['message'] ?? '';
     Timestamp? timestamp = data['timestamp'];
     String status = data['status'] ?? 'non_lu';
     String statusText =
@@ -126,7 +123,6 @@ class _HelpScreenState extends State<HelpScreen> {
             ? 'Non lu'
             : (status == 'en_cours' ? 'En cours' : 'Résolu');
     String? adminResponse = data['adminResponse'];
-    Timestamp? responseDate = data['responseDate'];
 
     Color statusColor;
     switch (status) {

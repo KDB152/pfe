@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'package:intl/intl.dart';
-import '../screens/login_screen.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import '../services/user_service.dart';
 import '../screens/home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -16,7 +13,6 @@ class UserManagementScreen extends StatefulWidget {
 }
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
-  final UserService _userService = UserService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -527,7 +523,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 var isActive = userData['isActive'] ?? true;
                 var isApproved = userData['isApproved'] ?? false;
                 var isAdmin = userData['isAdmin'] ?? false;
-                var email = userData['email'] ?? '';
 
                 // Vérification que l'utilisateur avec cet email apparaît dans la liste
                 // Décommenter cette ligne pour déboguer

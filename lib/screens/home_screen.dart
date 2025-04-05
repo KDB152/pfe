@@ -10,7 +10,6 @@ import '../screens/login_screen.dart';
 import '../screens/user_management_screen.dart';
 import '../widgets/fire_detection_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../screens/view_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userEmail;
@@ -25,7 +24,6 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   SensorData? _sensorData;
   bool _isLoading = true;
-  int _selectedIndex = 0;
   bool _isAdmin = false;
   final AuthService _authService = AuthService();
   final SensorService _sensorService = SensorService();
@@ -79,48 +77,6 @@ class _HomeScreenState extends State<HomeScreen>
         _isAdmin = isAdmin;
         _isLoading = false;
       });
-    }
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    // Navigation basée sur l'index sélectionné
-    if (_isAdmin) {
-      switch (index) {
-        case 0:
-          // Rester sur Home
-          break;
-        case 1:
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => UserManagementScreen()),
-          );
-          break;
-        case 2:
-          Navigator.pushNamed(context, '/Notifications');
-          break;
-        case 3:
-          Navigator.pushNamed(context, '/Paramètres');
-          break;
-      }
-    } else {
-      switch (index) {
-        case 0:
-          // Rester sur Home
-          break;
-        case 1:
-          Navigator.pushNamed(context, '/Notifications');
-          break;
-        case 2:
-          Navigator.pushNamed(context, '/Paramètres');
-          break;
-        case 3:
-          Navigator.pushNamed(context, '/Aide & Support');
-          break;
-      }
     }
   }
 

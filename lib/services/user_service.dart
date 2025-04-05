@@ -159,7 +159,6 @@ class UserService {
 
   // Méthode pour supprimer complètement un utilisateur (Auth + Firestore)
   Future<void> deleteUserCompletely(String userId) async {
-    final FirebaseAuth _auth = FirebaseAuth.instance;
     await _authService.deleteUser(userId);
   }
 
