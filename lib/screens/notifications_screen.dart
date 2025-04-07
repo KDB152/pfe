@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import '../models/sensor_data_model.dart';
+import '../services/notification_sevice.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -15,6 +18,44 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialiser le service de notifications
+    NotificationService.initialize();
+    // Écouter les notifications en premier plan
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (message.notification != null) {
+        final alert = Alert(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          title: message.notification!.title ?? 'Alerte',
+          description: message.notification!.body ?? 'Aucune description',
+          timestamp: DateTime.now(),
+          type: _mapMessageToAlertType(message),
+        );
+        setState(() {
+          _notifications.add(alert);
+        });
+        // Sauvegarder dans Firestore
+        _saveNotificationToFirestore(alert);
+      }
+    });
+
+    // Gérer les notifications ouvertes depuis l'état fermé
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      if (message.notification != null) {
+        final alert = Alert(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          title: message.notification!.title ?? 'Alerte',
+          description: message.notification!.body ?? 'Aucune description',
+          timestamp: DateTime.now(),
+          type: _mapMessageToAlertType(message),
+        );
+        setState(() {
+          _notifications.add(alert);
+        });
+        // Sauvegarder dans Firestore
+        _saveNotificationToFirestore(alert);
+      }
+    });
+
     _loadNotifications();
   }
 
@@ -24,40 +65,71 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     });
 
     try {
-      // Simulez une récupération de notifications
-      await Future.delayed(const Duration(seconds: 1));
+      // Charger les notifications depuis Firestore
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('notifications')
+              .orderBy('timestamp', descending: true)
+              .get();
 
+      final List<Alert> loadedNotifications =
+          snapshot.docs.map((doc) {
+            final data = doc.data();
+            return Alert(
+              id: doc.id,
+              title: data['title'] ?? 'Alerte',
+              description: data['description'] ?? 'Aucune description',
+              timestamp: (data['timestamp'] as Timestamp).toDate(),
+              type: _stringToAlertType(data['type'] ?? 'info'),
+            );
+          }).toList();
+
+      // Ajouter les notifications simulées (pour le test initial)
       final now = DateTime.now();
+      final simulatedNotifications = [
+        Alert(
+          id: '1',
+          title: 'Test du système',
+          description:
+              'Test de routine du système de détection d\'incendie complété avec succès.',
+          timestamp: DateTime(now.year, now.month, now.day, 8, 23),
+          type: AlertType.test,
+        ),
+        Alert(
+          id: '2',
+          title: 'Alerte de fumée',
+          description:
+              'Détection de fumée dans la cuisine. Vérification effectuée: fausse alerte.',
+          timestamp: DateTime(now.year, now.month, now.day - 4, 14, 17),
+          type: AlertType.falseAlarm,
+        ),
+        Alert(
+          id: '3',
+          title: 'Batterie faible',
+          description:
+              'Le niveau de batterie du détecteur est bas. Veuillez remplacer les piles.',
+          timestamp: DateTime(now.year, now.month, now.day - 7, 9, 45),
+          type: AlertType.systemFailure,
+        ),
+      ];
 
+      // Combiner les notifications simulées et celles de Firestore
       setState(() {
-        _notifications = [
-          Alert(
-            id: '1',
-            title: 'Test du système',
-            description:
-                'Test de routine du système de détection d\'incendie complété avec succès.',
-            timestamp: DateTime(now.year, now.month, now.day, 8, 23),
-            type: AlertType.test,
-          ),
-          Alert(
-            id: '2',
-            title: 'Alerte de fumée',
-            description:
-                'Détection de fumée dans la cuisine. Vérification effectuée: fausse alerte.',
-            timestamp: DateTime(now.year, now.month, now.day - 4, 14, 17),
-            type: AlertType.falseAlarm,
-          ),
-          Alert(
-            id: '3',
-            title: 'Batterie faible',
-            description:
-                'Le niveau de batterie du détecteur est bas. Veuillez remplacer les piles.',
-            timestamp: DateTime(now.year, now.month, now.day - 7, 9, 45),
-            type: AlertType.systemFailure,
-          ),
-        ];
+        _notifications = [...simulatedNotifications, ...loadedNotifications];
         _isLoading = false;
       });
+
+      // Sauvegarder les notifications simulées dans Firestore si elles n'existent pas
+      for (var alert in simulatedNotifications) {
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('notifications')
+                .doc(alert.id)
+                .get();
+        if (!doc.exists) {
+          await _saveNotificationToFirestore(alert);
+        }
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -67,6 +139,47 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           content: Text('Erreur lors du chargement des notifications: $e'),
         ),
       );
+    }
+  }
+
+  Future<void> _saveNotificationToFirestore(Alert alert) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(alert.id)
+          .set({
+            'title': alert.title,
+            'description': alert.description,
+            'timestamp': Timestamp.fromDate(alert.timestamp),
+            'type': alert.type.toString().split('.').last,
+          });
+    } catch (e) {
+      print('Erreur lors de la sauvegarde de la notification: $e');
+    }
+  }
+
+  AlertType _mapMessageToAlertType(RemoteMessage message) {
+    if (message.data.containsKey('type')) {
+      return _stringToAlertType(message.data['type']);
+    }
+    return AlertType.info;
+  }
+
+  AlertType _stringToAlertType(String type) {
+    switch (type) {
+      case 'smoke':
+        return AlertType.smoke;
+      case 'co2':
+        return AlertType.co2;
+      case 'test':
+        return AlertType.test;
+      case 'falseAlarm':
+        return AlertType.falseAlarm;
+      case 'systemFailure':
+        return AlertType.systemFailure;
+      case 'info':
+      default:
+        return AlertType.info;
     }
   }
 

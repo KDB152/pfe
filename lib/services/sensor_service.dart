@@ -43,7 +43,7 @@ class SensorService {
   SensorData getLastSensorData() {
     // Cette méthode sera remplacée par les données du stream
     return SensorData(
-      temperature: 22.0,
+      temperature: 60.0,
       humidity: 45.0,
       smoke: 0.0,
       co2: 0.0,
