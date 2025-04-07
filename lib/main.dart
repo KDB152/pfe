@@ -1,80 +1,18 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/help_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'screens/user_management_screen.dart';
 import 'screens/users_comments_screen.dart';
 import 'screens/intro_screen.dart';
-import 'models/sensor_data_model.dart';
-import 'services/notification_sevice.dart';
-
-// Fonction de niveau supérieur pour gérer les notifications en arrière-plan
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('Handling a background message: ${message.messageId}');
-  if (message.notification != null) {
-    final alert = Alert(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: message.notification!.title ?? 'Alerte',
-      description: message.notification!.body ?? 'Aucune description',
-      timestamp: DateTime.now(),
-      type: _mapMessageToAlertType(message),
-    );
-
-    // Sauvegarder la notification dans Firestore
-    try {
-      await FirebaseFirestore.instance
-          .collection('notifications')
-          .doc(alert.id)
-          .set({
-            'title': alert.title,
-            'description': alert.description,
-            'timestamp': Timestamp.fromDate(alert.timestamp),
-            'type': alert.type.toString().split('.').last,
-          });
-    } catch (e) {
-      print(
-        'Erreur lors de la sauvegarde de la notification en arrière-plan: $e',
-      );
-    }
-  }
-}
-
-// Fonction pour mapper le type de message à AlertType
-AlertType _mapMessageToAlertType(RemoteMessage message) {
-  if (message.data.containsKey('type')) {
-    switch (message.data['type']) {
-      case 'smoke':
-        return AlertType.smoke;
-      case 'co2':
-        return AlertType.co2;
-      case 'test':
-        return AlertType.test;
-      case 'falseAlarm':
-        return AlertType.falseAlarm;
-      case 'systemFailure':
-        return AlertType.systemFailure;
-      default:
-        return AlertType.info;
-    }
-  }
-  return AlertType.info;
-}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-
-  // Initialiser Firebase Messaging
-  await NotificationService.initialize();
-
-  // Configurer le gestionnaire de notifications en arrière-plan
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Fixer l'orientation de l'écran en mode portrait uniquement
   SystemChrome.setPreferredOrientations([
@@ -182,10 +120,11 @@ class FireDetectorApp extends StatelessWidget {
           color: Colors.grey[700],
         ),
       ),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.system, // Utiliser le thème du système
       initialRoute: '/',
       routes: {
         '/': (context) => IntroScreen(),
+
         '/home':
             (context) =>
                 const HomeScreen(userEmail: 'detecteurincendie7@gmail.com'),
@@ -196,7 +135,8 @@ class FireDetectorApp extends StatelessWidget {
                 const SettingsScreen(email: 'detecteurincendie7@gmail.com'),
         '/Aide & Support': (context) => const HelpScreen(),
         '/user-management': (context) => const UserManagementScreen(),
-        '/users-comments': (context) => const UsersCommentsScreen(),
+        '/users-comments':
+            (context) => const UsersCommentsScreen(), // Ajouter cette route
       },
     );
   }
