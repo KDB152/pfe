@@ -9,6 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'screens/user_management_screen.dart';
 import 'screens/users_comments_screen.dart';
 import 'screens/intro_screen.dart';
+import 'screens/SplashScreen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -123,8 +124,8 @@ class FireDetectorApp extends StatelessWidget {
       themeMode: ThemeMode.system, // Utiliser le thème du système
       initialRoute: '/',
       routes: {
-        '/': (context) => IntroScreen(),
-
+        '/': (context) => const SplashScreen(),
+        '/intro': (context) => const IntroScreen(),
         '/home':
             (context) =>
                 const HomeScreen(userEmail: 'detecteurincendie7@gmail.com'),
