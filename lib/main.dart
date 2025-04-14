@@ -10,6 +10,7 @@ import 'screens/user_management_screen.dart';
 import 'screens/users_comments_screen.dart';
 import 'screens/intro_screen.dart';
 import 'screens/SplashScreen.dart';
+import 'screens/view_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -135,6 +136,7 @@ class FireDetectorApp extends StatelessWidget {
             (context) =>
                 const SettingsScreen(email: 'detecteurincendie7@gmail.com'),
         '/Aide & Support': (context) => const HelpScreen(),
+        '/live-view': (context) => ViewScreen(),
         '/user-management': (context) => const UserManagementScreen(),
         '/users-comments':
             (context) => const UsersCommentsScreen(), // Ajouter cette route
