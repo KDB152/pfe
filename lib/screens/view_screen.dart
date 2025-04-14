@@ -47,7 +47,7 @@ class _ViewScreenState extends State<ViewScreen> {
         .timeout(
           const Duration(seconds: 3),
           onTimeout: () {
-            _showSnackBar("Impossible de se connecter à l'ESP32-CAM");
+            _showSnackBar("Veuillez vérifier l'adresse IP de votre ESP32-CAM");
             setState(() {
               _isLoading = false;
             });
@@ -70,7 +70,7 @@ class _ViewScreenState extends State<ViewScreen> {
           }
         })
         .catchError((error) {
-          _showSnackBar("Erreur: $error");
+          _showSnackBar("Veuillez vérifier l'adresse IP de votre ESP32-CAM");
           setState(() {
             _isLoading = false;
           });
@@ -135,7 +135,7 @@ class _ViewScreenState extends State<ViewScreen> {
       if (response.statusCode == 200) {
         _showSnackBar("LED basculée avec succès");
       } else {
-        _showSnackBar("Erreur: ${response.statusCode}");
+        _showSnackBar("Veuillez vérifier l'URL de la caméra");
       }
     } catch (e) {
       _showSnackBar("Erreur lors de la commutation de la LED: $e");
