@@ -90,21 +90,24 @@ class _ViewScreenState extends State<ViewScreen> {
   void _startStream() {
     setState(() {
       _isStreaming = true;
+      _refreshCounter++;
 
-      // Correction pour un flux vidéo live en utilisant le format MJPEG natif
-      // Ne pas ajouter de paramètre timestamp pour éviter de casser le streaming continu
-      _imageUrl = '$_cameraUrl/mjpeg/1';
-
-      // Alternative si le premier endpoint ne fonctionne pas
-      // _imageUrl = '$_cameraUrl/stream';
+      // Correction: Utilisation de l'endpoint correct pour l'ESP32-CAM
+      // L'ESP32-CAM utilise /capture pour une seule image ou /stream pour le MJPEG
+      _imageUrl = '$_cameraUrl/stream';
     });
 
-    // Supprimer le timer qui rafraîchit périodiquement l'image
-    // Pour un vrai streaming, l'Image.network gère automatiquement le flux MJPEG
-    if (_streamTimer != null) {
-      _streamTimer!.cancel();
-      _streamTimer = null;
-    }
+    // Démarrer un timer pour rafraîchir l'image si le streaming MJPEG échoue
+    _streamTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+      if (_isStreaming && mounted) {
+        setState(() {
+          _refreshCounter++;
+          // Pour les ESP32-CAM qui ne prennent pas en charge le streaming MJPEG,
+          // nous pouvons utiliser /capture et rafraîchir périodiquement
+          _imageUrl = '$_cameraUrl/capture?_t=$_refreshCounter';
+        });
+      }
+    });
   }
 
   void _stopStream() {
@@ -332,10 +335,9 @@ class _ViewScreenState extends State<ViewScreen> {
                                   ? Image.network(
                                     _imageUrl,
                                     fit: BoxFit.contain,
-                                    // Suppression du cache pour obtenir un streaming en temps réel
-                                    // cacheWidth et cacheHeight interfèrent avec les flux MJPEG
-                                    gaplessPlayback:
-                                        true, // Empêche le clignotement lors des mises à jour
+                                    // Augmentation du cache pour éviter les rechargements constants
+                                    cacheWidth: 800,
+                                    cacheHeight: 600,
                                     errorBuilder: (context, error, stackTrace) {
                                       print("Erreur de chargement: $error");
                                       return Center(
@@ -364,22 +366,48 @@ class _ViewScreenState extends State<ViewScreen> {
                                             SizedBox(height: 16),
                                             TextButton.icon(
                                               onPressed: () {
-                                                // Essayer avec une URL alternative pour le streaming
+                                                // Essayer avec une URL alternative
                                                 setState(() {
-                                                  if (_imageUrl.contains(
-                                                    '/mjpeg/1',
-                                                  )) {
-                                                    _imageUrl =
-                                                        '$_cameraUrl/stream';
-                                                  } else {
-                                                    _imageUrl =
-                                                        '$_cameraUrl/mjpeg/1';
-                                                  }
+                                                  _refreshCounter++;
+                                                  // Tenter avec une autre URL couramment utilisée pour ESP32-CAM
+                                                  _imageUrl =
+                                                      '$_cameraUrl/capture?_t=$_refreshCounter';
                                                 });
                                               },
                                               icon: Icon(Icons.refresh),
                                               label: Text('Réessayer'),
                                             ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                    loadingBuilder: (
+                                      BuildContext context,
+                                      Widget child,
+                                      ImageChunkEvent? loadingProgress,
+                                    ) {
+                                      if (loadingProgress == null) {
+                                        return child;
+                                      }
+                                      return Center(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            CircularProgressIndicator(
+                                              value:
+                                                  loadingProgress
+                                                              .expectedTotalBytes !=
+                                                          null
+                                                      ? loadingProgress
+                                                              .cumulativeBytesLoaded /
+                                                          loadingProgress
+                                                              .expectedTotalBytes!
+                                                      : null,
+                                              color: Colors.deepOrange,
+                                            ),
+                                            SizedBox(height: 16),
+                                            Text('Chargement du flux vidéo...'),
                                           ],
                                         ),
                                       );
