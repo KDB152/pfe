@@ -45,9 +45,11 @@ class _ViewScreenState extends State<ViewScreen> {
     http
         .get(Uri.parse('http://$ipAddress'))
         .timeout(
-          const Duration(seconds: 3),
+          const Duration(seconds: 5), // Augmentation du délai d'attente
           onTimeout: () {
-            _showSnackBar("Veuillez vérifier l'adresse IP de votre ESP32-CAM");
+            _showSnackBar(
+              "Délai d'attente dépassé. Vérifiez l'adresse IP de votre ESP32-CAM",
+            );
             setState(() {
               _isLoading = false;
             });
@@ -70,7 +72,7 @@ class _ViewScreenState extends State<ViewScreen> {
           }
         })
         .catchError((error) {
-          _showSnackBar("Veuillez vérifier l'adresse IP de votre ESP32-CAM");
+          _showSnackBar("Erreur de connexion: ${error.toString()}");
           setState(() {
             _isLoading = false;
           });
@@ -88,20 +90,21 @@ class _ViewScreenState extends State<ViewScreen> {
   void _startStream() {
     setState(() {
       _isStreaming = true;
-      _refreshCounter++;
-      // Change from '/stream' to '/mjpeg/1' which is the standard ESP32-CAM streaming endpoint
-      _imageUrl = '$_cameraUrl/mjpeg/1?_t=$_refreshCounter';
+
+      // Correction pour un flux vidéo live en utilisant le format MJPEG natif
+      // Ne pas ajouter de paramètre timestamp pour éviter de casser le streaming continu
+      _imageUrl = '$_cameraUrl/mjpeg/1';
+
+      // Alternative si le premier endpoint ne fonctionne pas
+      // _imageUrl = '$_cameraUrl/stream';
     });
 
-    // Démarrer un timer pour vérifier périodiquement l'état de la connexion
-    _streamTimer = Timer.periodic(Duration(seconds: 10), (timer) {
-      if (_isStreaming) {
-        setState(() {
-          _refreshCounter++;
-          _imageUrl = '$_cameraUrl/stream?_t=$_refreshCounter';
-        });
-      }
-    });
+    // Supprimer le timer qui rafraîchit périodiquement l'image
+    // Pour un vrai streaming, l'Image.network gère automatiquement le flux MJPEG
+    if (_streamTimer != null) {
+      _streamTimer!.cancel();
+      _streamTimer = null;
+    }
   }
 
   void _stopStream() {
@@ -118,7 +121,6 @@ class _ViewScreenState extends State<ViewScreen> {
       }
     } catch (e) {
       print('Failed to update state: $e');
-      // State update failed, but at least we prevented the app from crashing
     }
   }
 
@@ -128,17 +130,19 @@ class _ViewScreenState extends State<ViewScreen> {
     });
 
     try {
+      // Correction de l'URL de contrôle LED pour l'ESP32-CAM standard
       final response = await http
-          .get(Uri.parse('$_cameraUrl/control?led=toggle'))
+          .get(Uri.parse('$_cameraUrl/control?var=flash&val=1'))
           .timeout(const Duration(seconds: 3));
 
+      // Pour éteindre, on pourrait utiliser val=0, mais ici on veut juste basculer
       if (response.statusCode == 200) {
         _showSnackBar("LED basculée avec succès");
       } else {
-        _showSnackBar("Veuillez vérifier l'URL de la caméra");
+        _showSnackBar("Erreur: ${response.statusCode}");
       }
     } catch (e) {
-      _showSnackBar("Erreur lors de la commutation de la LED: $e");
+      _showSnackBar("Erreur lors de la commutation de la LED: ${e.toString()}");
     } finally {
       setState(() {
         _isLoading = false;
@@ -153,17 +157,25 @@ class _ViewScreenState extends State<ViewScreen> {
     });
 
     try {
+      // Correction de l'URL pour ajuster la qualité sur l'ESP32-CAM standard
       final response = await http
-          .get(Uri.parse('$_cameraUrl/control?quality=$quality'))
+          .get(Uri.parse('$_cameraUrl/control?var=quality&val=$quality'))
           .timeout(const Duration(seconds: 3));
 
       if (response.statusCode == 200) {
         _showSnackBar("Qualité modifiée");
+        // Redémarrer le flux pour appliquer les changements
+        if (_isStreaming) {
+          _stopStream();
+          _startStream();
+        }
       } else {
         _showSnackBar("Erreur: ${response.statusCode}");
       }
     } catch (e) {
-      _showSnackBar("Erreur lors de l'ajustement de la qualité: $e");
+      _showSnackBar(
+        "Erreur lors de l'ajustement de la qualité: ${e.toString()}",
+      );
     } finally {
       setState(() {
         _isLoading = false;
@@ -230,7 +242,7 @@ class _ViewScreenState extends State<ViewScreen> {
                               controller: _ipController,
                               decoration: InputDecoration(
                                 labelText: 'Adresse IP de l\'ESP32-CAM',
-                                hintText: 'Ex: 192.168.1.19',
+                                hintText: 'Ex: 192.168.1.1',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
@@ -320,7 +332,12 @@ class _ViewScreenState extends State<ViewScreen> {
                                   ? Image.network(
                                     _imageUrl,
                                     fit: BoxFit.contain,
+                                    // Suppression du cache pour obtenir un streaming en temps réel
+                                    // cacheWidth et cacheHeight interfèrent avec les flux MJPEG
+                                    gaplessPlayback:
+                                        true, // Empêche le clignotement lors des mises à jour
                                     errorBuilder: (context, error, stackTrace) {
+                                      print("Erreur de chargement: $error");
                                       return Center(
                                         child: Column(
                                           mainAxisAlignment:
@@ -346,41 +363,23 @@ class _ViewScreenState extends State<ViewScreen> {
                                             ),
                                             SizedBox(height: 16),
                                             TextButton.icon(
-                                              onPressed: _startStream,
+                                              onPressed: () {
+                                                // Essayer avec une URL alternative pour le streaming
+                                                setState(() {
+                                                  if (_imageUrl.contains(
+                                                    '/mjpeg/1',
+                                                  )) {
+                                                    _imageUrl =
+                                                        '$_cameraUrl/stream';
+                                                  } else {
+                                                    _imageUrl =
+                                                        '$_cameraUrl/mjpeg/1';
+                                                  }
+                                                });
+                                              },
                                               icon: Icon(Icons.refresh),
                                               label: Text('Réessayer'),
                                             ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                    loadingBuilder: (
-                                      BuildContext context,
-                                      Widget child,
-                                      ImageChunkEvent? loadingProgress,
-                                    ) {
-                                      if (loadingProgress == null) {
-                                        return child;
-                                      }
-                                      return Center(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            CircularProgressIndicator(
-                                              value:
-                                                  loadingProgress
-                                                              .expectedTotalBytes !=
-                                                          null
-                                                      ? loadingProgress
-                                                              .cumulativeBytesLoaded /
-                                                          loadingProgress
-                                                              .expectedTotalBytes!
-                                                      : null,
-                                              color: Colors.deepOrange,
-                                            ),
-                                            SizedBox(height: 16),
-                                            Text('Chargement du flux vidéo...'),
                                           ],
                                         ),
                                       );
