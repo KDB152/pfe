@@ -98,7 +98,7 @@ class _ViewScreenState extends State<ViewScreen> {
     });
 
     // Démarrer un timer pour rafraîchir l'image si le streaming MJPEG échoue
-    _streamTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+    _streamTimer = Timer.periodic(Duration(seconds: 0), (timer) {
       if (_isStreaming && mounted) {
         setState(() {
           _refreshCounter++;
@@ -202,7 +202,7 @@ class _ViewScreenState extends State<ViewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('ESP32-CAM Viewer'),
+        title: Text('Visualisation du local'),
         backgroundColor: Colors.deepOrange,
         centerTitle: true,
         elevation: 0,
