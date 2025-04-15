@@ -12,6 +12,7 @@ import '../screens/home_screen.dart';
 import '../screens/disabled_screen.dart';
 import '../screens/verify_email_screen.dart';
 import '../services/user_service.dart';
+import '../screens/deleted_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -179,10 +180,12 @@ class _LoginScreenState extends State<LoginScreen> {
             }
           });
         } catch (e) {
-          setState(
-            () =>
-                _errorMessage = 'Votre e-mail et/ou mot de passe incorrect(s)',
-          );
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => DeletedScreen()),
+            );
+          }
         }
       } finally {
         setState(() {
@@ -400,7 +403,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           _errorMessage,
                           style: TextStyle(
-                            color: const Color.fromARGB(255, 255, 255, 255),
+                            color: const Color.fromARGB(255, 233, 180, 180),
                             fontSize: AppSizes.bodyFontSize(context),
                             fontWeight: FontWeight.bold,
                           ),

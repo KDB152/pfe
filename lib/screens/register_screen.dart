@@ -59,10 +59,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         setState(() {
           switch (e.code) {
             case 'weak-password':
-              _errorMessage = 'The password is too weak.';
+              _errorMessage = 'Ce mot de passe est trop faible.';
               break;
             case 'email-already-in-use':
-              _errorMessage = 'An account already exists with this email.';
+              _errorMessage =
+                  'Un compte existe déjà avec cet e-mail. \n Essayer de réinitialiser votre mot de passe.';
               break;
             default:
               _errorMessage = 'Registration failed. Please try again.';
