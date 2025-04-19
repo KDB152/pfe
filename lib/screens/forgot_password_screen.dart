@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
-import '../widgets/custom_text_field.dart';
-import '../widgets/custom_button.dart';
 import '../services/user_service.dart';
 import '../widgets/fire_detection_background.dart';
 import '../utils/constants.dart';
@@ -107,7 +105,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     final double contentPadding = AppSizes.contentPadding(context);
     final double spacingLarge = AppSizes.height(context, 0.025);
     final double spacingMedium = AppSizes.height(context, 0.015);
-    final double spacingSmall = AppSizes.height(context, 0.008);
 
     return Scaffold(
       resizeToAvoidBottomInset: true,

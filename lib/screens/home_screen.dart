@@ -145,7 +145,6 @@ class _HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     final double contentPadding = AppSizes.contentPadding(context);
     final double spacingLarge = AppSizes.height(context, 0.025);
-    final double spacingMedium = AppSizes.height(context, 0.015);
 
     return Scaffold(
       appBar: AppBar(
@@ -388,12 +387,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   int _selectedTabIndex = 0;
   final List<String> _tabTitles = ['Température', 'Humidité', 'Fumée', 'CO2'];
-  final List<Color> _tabColors = [
-    Color(0xFFD43C38),
-    Colors.blueAccent,
-    Colors.grey.shade400,
-    Colors.greenAccent,
-  ];
 
   Widget _buildTabSelector() {
     return SizedBox(
