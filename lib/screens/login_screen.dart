@@ -405,7 +405,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       ),
                                       SizedBox(width: 8),
                                       Text(
-                                        'Se souvenir de moi',
+                                        'Se souvenir',
                                         style: TextStyle(
                                           color: Colors.white.withOpacity(0.9),
                                           fontSize:
