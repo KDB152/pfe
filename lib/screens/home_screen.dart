@@ -10,6 +10,8 @@ import '../screens/login_screen.dart';
 import '../screens/user_management_screen.dart';
 import '../widgets/fire_detection_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/constants.dart';
+import 'dart:ui';
 
 class HomeScreen extends StatefulWidget {
   final String userEmail;
@@ -28,37 +30,38 @@ class _HomeScreenState extends State<HomeScreen>
   final AuthService _authService = AuthService();
   final SensorService _sensorService = SensorService();
   late StreamSubscription<SensorData> _sensorSubscription;
+  Timer? _debounceTimer;
 
-  // Pour les graphiques
-  final List<double> _temperatureData = List<double>.filled(20, 22.0).toList();
-  final List<double> _humidityData = List<double>.filled(20, 45.0).toList();
-  final List<double> _smokeData = List<double>.filled(20, 0.0).toList();
-  final List<double> _co2Data = List<double>.generate(20, (_) => 0.0);
+  final List<double> _temperatureData = List.generate(20, (_) => 22.0);
+  final List<double> _humidityData = List.generate(20, (_) => 45.0);
+  final List<double> _smokeData = List.generate(20, (_) => 0.0);
+  final List<double> _co2Data = List.generate(20, (_) => 0.0);
 
-  // Animation controller
   late final AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
 
-    // Initialiser l'animation controller
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 800),
+    )..forward();
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
-    // Vérifier si l'utilisateur est admin
     _checkAdminStatus();
 
-    // Initialiser le service de capteurs
     _sensorService.initialize().then((_) {
-      // S'abonner aux mises à jour des capteurs
-      _sensorSubscription = _sensorService.sensorDataStream.listen(
-        _onSensorDataUpdate,
-      );
-
-      // Obtenir les données initiales
+      _sensorSubscription = _sensorService.sensorDataStream.listen((data) {
+        if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+        _debounceTimer = Timer(Duration(milliseconds: 500), () {
+          _onSensorDataUpdate(data);
+        });
+      });
       _loadSensorData();
     });
   }
@@ -66,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _sensorSubscription.cancel();
+    _debounceTimer?.cancel();
     _animationController.dispose();
     super.dispose();
   }
@@ -81,22 +85,27 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _onSensorDataUpdate(SensorData data) {
-    setState(() {
-      _sensorData = data;
-      _isLoading = false;
+    if (_sensorData == null || _hasSignificantChange(_sensorData!, data)) {
+      setState(() {
+        _sensorData = data;
+        _isLoading = false;
+        _updateChartData(data);
+      });
 
-      // Mettre à jour les données du graphique
-      _updateChartData(data);
-    });
+      _animationController.reset();
+      _animationController.forward();
+    }
+  }
 
-    // Animer la transition
-    _animationController.reset();
-    _animationController.forward();
+  bool _hasSignificantChange(SensorData oldData, SensorData newData) {
+    const double threshold = 0.5;
+    return (oldData.temperature - newData.temperature).abs() > threshold ||
+        (oldData.humidity - newData.humidity).abs() > threshold ||
+        (oldData.smoke - newData.smoke).abs() > threshold ||
+        (oldData.co2 - newData.co2).abs() > threshold;
   }
 
   void _updateChartData(SensorData data) {
-    // Mettre à jour les listes de données en supprimant la plus ancienne valeur
-    // et en ajoutant la nouvelle à la fin
     _temperatureData.removeAt(0);
     _temperatureData.add(data.temperature);
 
@@ -104,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen>
     _humidityData.add(data.humidity);
 
     _smokeData.removeAt(0);
-    _smokeData.add(data.smoke * 100); // Amplifier pour la visualisation
+    _smokeData.add(data.smoke * 100);
 
     _co2Data.removeAt(0);
     _co2Data.add(data.co2);
@@ -116,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen>
     });
 
     try {
-      final data = _sensorService.getLastSensorData();
+      final data = await _sensorService.getLastSensorData();
       setState(() {
         _sensorData = data;
         _updateChartData(data);
@@ -134,36 +143,68 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final double contentPadding = AppSizes.contentPadding(context);
+    final double spacingLarge = AppSizes.height(context, 0.025);
+    final double spacingMedium = AppSizes.height(context, 0.015);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Détecteur Incendie'),
-        backgroundColor: Colors.deepOrange,
+        title: Text(
+          'Détecteur Incendie',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: AppSizes.titleFontSize(context),
+            fontWeight: FontWeight.w800,
+            fontFamily: 'Inter',
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFFD43C38).withOpacity(0.8),
+                Color(0xFFFF8A65).withOpacity(0.8),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
       ),
       drawer: _buildDrawer(context),
       body: FireDetectionBackground(
         child:
             _isLoading
-                ? const Center(
-                  child: CircularProgressIndicator(color: Colors.deepOrange),
+                ? Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFFFF8A65),
+                    strokeWidth: 3,
+                  ),
                 )
                 : RefreshIndicator(
                   onRefresh: _loadSensorData,
+                  color: Color(0xFFFF8A65),
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildUserInfoCard(),
-                        const SizedBox(height: 20),
-                        _buildSensorDataCards(),
-                        const SizedBox(height: 20),
-                        _buildCharts(),
-                        const SizedBox(height: 20),
-                        _buildSystemStatusSection(),
-                        const SizedBox(height: 20),
-                        _buildRecentAlertsSection(),
-                      ],
+                    padding: EdgeInsets.all(contentPadding),
+                    child: FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildUserInfoCard(),
+                          SizedBox(height: spacingLarge),
+                          _buildSensorDataCards(),
+                          SizedBox(height: spacingLarge),
+                          _buildCharts(),
+                          SizedBox(height: spacingLarge),
+                          _buildSystemStatusSection(),
+                          SizedBox(height: spacingLarge),
+                          _buildRecentAlertsSection(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -178,15 +219,16 @@ class _HomeScreenState extends State<HomeScreen>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Mesures en temps réel',
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 187, 183, 183),
+                fontSize: AppSizes.titleFontSize(context) * 0.9,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                fontFamily: 'Inter',
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: AppSizes.height(context, 0.015)),
             GridView.count(
               crossAxisCount: 2,
               crossAxisSpacing: 10,
@@ -198,28 +240,28 @@ class _HomeScreenState extends State<HomeScreen>
                   title: 'Température',
                   value: '${_sensorData!.temperature} °C',
                   icon: Icons.thermostat,
-                  color: Colors.red,
+                  color: Color(0xFFD43C38),
                   animation: _animationController,
                 ),
                 _buildSensorDataCard(
                   title: 'Humidité',
                   value: '${_sensorData!.humidity} %',
                   icon: Icons.water_drop,
-                  color: Colors.blue,
+                  color: Colors.blueAccent,
                   animation: _animationController,
                 ),
                 _buildSensorDataCard(
                   title: 'Fumée',
                   value: '${(_sensorData!.smoke).toStringAsFixed(1)} %',
                   icon: Icons.smoke_free,
-                  color: Colors.grey,
+                  color: Colors.grey.shade400,
                   animation: _animationController,
                 ),
                 _buildSensorDataCard(
                   title: 'CO2',
                   value: '${(_sensorData!.co2).toStringAsFixed(1)} ppm',
                   icon: Icons.cloud,
-                  color: Colors.green,
+                  color: Colors.greenAccent,
                   animation: _animationController,
                 ),
               ],
@@ -237,38 +279,60 @@ class _HomeScreenState extends State<HomeScreen>
     required Color color,
     required Animation<double> animation,
   }) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 36),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            const SizedBox(height: 8),
-            AnimatedBuilder(
-              animation: animation,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: 0.9 + animation.value * 0.1,
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: 36),
+                const SizedBox(height: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: AppSizes.bodyFontSize(context),
+                    color: Colors.white,
+                    fontFamily: 'Inter',
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: 8),
+                AnimatedBuilder(
+                  animation: animation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: 0.9 + animation.value * 0.1,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: AppSizes.subtitleFontSize(context),
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -278,28 +342,43 @@ class _HomeScreenState extends State<HomeScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Évolution des données',
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color.fromARGB(255, 187, 183, 183),
+            fontSize: AppSizes.titleFontSize(context) * 0.9,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            fontFamily: 'Inter',
           ),
         ),
-        const SizedBox(height: 10),
-        Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                _buildTabSelector(),
-                const SizedBox(height: 16),
-                SizedBox(height: 200, child: _buildLineChart()),
-              ],
+        SizedBox(height: AppSizes.height(context, 0.015)),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    _buildTabSelector(),
+                    const SizedBox(height: 16),
+                    SizedBox(height: 200, child: _buildLineChart()),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -310,10 +389,10 @@ class _HomeScreenState extends State<HomeScreen>
   int _selectedTabIndex = 0;
   final List<String> _tabTitles = ['Température', 'Humidité', 'Fumée', 'CO2'];
   final List<Color> _tabColors = [
-    Colors.red,
-    Colors.blue,
-    Colors.grey,
-    Colors.orange,
+    Color(0xFFD43C38),
+    Colors.blueAccent,
+    Colors.grey.shade400,
+    Colors.greenAccent,
   ];
 
   Widget _buildTabSelector() {
@@ -333,21 +412,36 @@ class _HomeScreenState extends State<HomeScreen>
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color:
+                gradient:
                     isSelected
-                        ? _tabColors[index]
-                        : _tabColors[index].withOpacity(0.1),
+                        ? LinearGradient(
+                          colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
+                        )
+                        : null,
+                color: !isSelected ? Colors.white.withOpacity(0.1) : null,
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color:
+                      isSelected
+                          ? Colors.transparent
+                          : Colors.white.withOpacity(0.3),
+                ),
               ),
               child: Center(
                 child: Text(
                   _tabTitles[index],
                   style: TextStyle(
-                    color: isSelected ? Colors.white : _tabColors[index],
+                    color:
+                        isSelected
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.8),
                     fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+                        isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500, // Corrected parameter
+                    fontFamily: 'Inter',
                   ),
                 ),
               ),
@@ -367,49 +461,79 @@ class _HomeScreenState extends State<HomeScreen>
     switch (_selectedTabIndex) {
       case 0:
         data = _temperatureData;
-        label = 'Temperature';
-        color = Colors.red;
+        label = 'Température';
+        color = Color(0xFFD43C38);
         unit = '°C';
         break;
       case 1:
         data = _humidityData;
         label = 'Humidité';
-        color = Colors.blue;
+        color = Colors.blueAccent;
         unit = '%';
         break;
       case 2:
         data = _smokeData;
         label = 'Fumée';
-        color = Colors.grey;
+        color = Colors.grey.shade400;
         unit = '%';
         break;
       case 3:
         data = _co2Data;
         label = 'CO2';
-        color = Colors.green;
-        unit = '%';
+        color = Colors.greenAccent;
+        unit = 'ppm';
         break;
       default:
         data = _temperatureData;
-        label = 'Temperature';
-        color = Colors.red;
+        label = 'Température';
+        color = Color(0xFFD43C38);
         unit = '°C';
     }
 
     return LineChart(
       LineChartData(
-        gridData: FlGridData(show: false),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          drawHorizontalLine: true,
+          horizontalInterval:
+              (data.reduce((a, b) => a > b ? a : b) / 5).ceilToDouble(),
+          getDrawingHorizontalLine: (value) {
+            return FlLine(color: Colors.white.withOpacity(0.1), strokeWidth: 1);
+          },
+        ),
         titlesData: FlTitlesData(
           rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
           topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: AxisTitles(
+          bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
+              interval: 5,
               getTitlesWidget: (value, meta) {
                 return Text(
                   value.toInt().toString(),
-                  style: const TextStyle(fontSize: 10),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white.withOpacity(0.6),
+                    fontFamily: 'Inter',
+                  ),
+                );
+              },
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval:
+                  (data.reduce((a, b) => a > b ? a : b) / 5).ceilToDouble(),
+              getTitlesWidget: (value, meta) {
+                return Text(
+                  value.toInt().toString(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white.withOpacity(0.6),
+                    fontFamily: 'Inter',
+                  ),
                 );
               },
               reservedSize: 30,
@@ -429,7 +553,11 @@ class _HomeScreenState extends State<HomeScreen>
             dotData: FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
-              color: color.withOpacity(0.2),
+              gradient: LinearGradient(
+                colors: [color.withOpacity(0.3), color.withOpacity(0.0)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
             ),
           ),
         ],
@@ -440,7 +568,11 @@ class _HomeScreenState extends State<HomeScreen>
               return touchedSpots.map((touchedSpot) {
                 return LineTooltipItem(
                   '${touchedSpot.y.toStringAsFixed(1)} $unit',
-                  const TextStyle(color: Colors.white, fontSize: 12),
+                  TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontFamily: 'Inter',
+                  ),
                 );
               }).toList();
             },
@@ -452,60 +584,65 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
+      backgroundColor: Colors.black.withOpacity(0.9),
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: const BoxDecoration(color: Colors.deepOrange),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
+              ),
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.deepOrange.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _isAdmin
-                              ? Icons.admin_panel_settings
-                              : Icons.local_fire_department,
-                          color: const Color.fromARGB(255, 255, 0, 0),
-                          size: 50,
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Détecteur Incendie',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: const Color.fromARGB(255, 255, 255, 255),
-                        ),
-                      ),
-                    ],
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.2),
+                        Colors.white.withOpacity(0.1),
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  ),
+                  child: Icon(
+                    _isAdmin
+                        ? Icons.admin_panel_settings
+                        : Icons.local_fire_department,
+                    color: Colors.white,
+                    size: 50,
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Détecteur Incendie',
+                  style: TextStyle(
+                    fontSize: AppSizes.titleFontSize(context) * 0.9,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    fontFamily: 'Inter',
                   ),
                 ),
               ],
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.home),
-            title: const Text('Accueil'),
+          _buildDrawerItem(
+            icon: Icons.home,
+            title: 'Accueil',
             selected: true,
             onTap: () {
-              Navigator.pop(context); // Ferme le drawer
+              Navigator.pop(context);
             },
           ),
-          // Afficher "Gestionnaire des utilisateurs" pour les administrateurs
           if (_isAdmin)
-            ListTile(
-              leading: const Icon(Icons.people),
-              title: const Text('Gestionnaire des utilisateurs'),
+            _buildDrawerItem(
+              icon: Icons.people,
+              title: 'Gestion des utilisateurs',
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -516,9 +653,9 @@ class _HomeScreenState extends State<HomeScreen>
                 );
               },
             ),
-          ListTile(
-            leading: const Icon(Icons.notifications),
-            title: const Text('Notifications'),
+          _buildDrawerItem(
+            icon: Icons.notifications,
+            title: 'Notifications',
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
@@ -529,16 +666,17 @@ class _HomeScreenState extends State<HomeScreen>
               );
             },
           ),
-          ListTile(
-            leading: Icon(Icons.videocam, color: Colors.deepOrange),
-            title: Text('Visualiser le local'),
+          _buildDrawerItem(
+            icon: Icons.videocam,
+            iconColor: Color(0xFFFF8A65),
+            title: 'Visualiser le local',
             onTap: () {
               Navigator.pushNamed(context, '/live-view');
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('Paramètres'),
+          _buildDrawerItem(
+            icon: Icons.settings,
+            title: 'Paramètres',
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
@@ -552,61 +690,72 @@ class _HomeScreenState extends State<HomeScreen>
               );
             },
           ),
-          // Afficher "Aide" seulement pour les utilisateurs non-administrateurs
           if (!_isAdmin)
-            ListTile(
-              leading: const Icon(Icons.help),
-              title: const Text('Aide & Support'),
+            _buildDrawerItem(
+              icon: Icons.help,
+              title: 'Aide & Support',
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, '/Aide & Support');
               },
             ),
-          // Dans le drawer de HomeScreen, ajouter cet élément pour les administrateurs
-          // Après l'élément UserManagementScreen
-
-          // Vérifier si l'utilisateur est admin pour afficher l'option de gestion des commentaires
-          if (_isAdmin) // Assurez-vous d'avoir une variable isAdmin dans votre HomeScreen
-            ListTile(
-              leading: const Icon(Icons.comment),
-              title: const Text('Commentaires utilisateurs'),
+          if (_isAdmin)
+            _buildDrawerItem(
+              icon: Icons.comment,
+              title: 'Commentaires utilisateurs',
               onTap: () {
-                Navigator.pop(context); // Fermer le drawer
+                Navigator.pop(context);
                 Navigator.pushNamed(context, '/users-comments');
               },
             ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text(
-              'Déconnexion',
-              style: TextStyle(color: Colors.red),
-            ),
+          const Divider(color: Colors.white30),
+          _buildDrawerItem(
+            icon: Icons.logout,
+            iconColor: Color(0xFFD43C38),
+            title: 'Déconnexion',
+            titleColor: Color(0xFFD43C38),
             onTap: () async {
-              // Logique de déconnexion inchangée
-              // Ferme le drawer
               Navigator.pop(context);
 
-              // Afficher une boîte de dialogue pour confirmer la déconnexion
               bool confirmLogout =
                   await showDialog(
                     context: context,
                     builder: (BuildContext context) {
                       return AlertDialog(
-                        title: const Text('Confirmation'),
-                        content: const Text(
+                        backgroundColor: Colors.black87,
+                        title: Text(
+                          'Confirmation',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                        content: Text(
                           'Êtes-vous sûr de vouloir vous déconnecter?',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontFamily: 'Inter',
+                          ),
                         ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Annuler'),
+                            child: Text(
+                              'Annuler',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
                           ),
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(true),
-                            child: const Text(
+                            child: Text(
                               'Déconnexion',
-                              style: TextStyle(color: Colors.red),
+                              style: TextStyle(
+                                color: Color(0xFFD43C38),
+                                fontFamily: 'Inter',
+                              ),
                             ),
                           ),
                         ],
@@ -615,13 +764,11 @@ class _HomeScreenState extends State<HomeScreen>
                   ) ??
                   false;
 
-              // Si l'utilisateur confirme la déconnexion
               if (confirmLogout) {
                 try {
                   final authService = AuthService();
                   await authService.signOut();
 
-                  // Navigation vers l'écran de connexion et suppression de toutes les routes précédentes
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(builder: (context) => LoginScreen()),
                     (route) => false,
@@ -639,7 +786,32 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // Dans la classe _HomeScreenState, modifiez la méthode _buildUserInfoCard()
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    Color? iconColor,
+    Color? titleColor,
+    bool selected = false,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: iconColor ?? (selected ? Color(0xFFFF8A65) : Colors.white70),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: titleColor ?? (selected ? Color(0xFFFF8A65) : Colors.white70),
+          fontFamily: 'Inter',
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+        ),
+      ),
+      selected: selected,
+      onTap: onTap,
+    );
+  }
+
   Widget _buildUserInfoCard() {
     return FutureBuilder<DocumentSnapshot>(
       future:
@@ -653,45 +825,63 @@ class _HomeScreenState extends State<HomeScreen>
           username = snapshot.data!.get('username') ?? 'Utilisateur';
         }
 
-        return Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: _isAdmin ? Colors.red : Colors.orange,
-                  child: Icon(
-                    _isAdmin ? Icons.admin_panel_settings : Icons.person,
-                    color: Colors.white,
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Bienvenue, $username',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: _isAdmin ? Colors.red : Colors.black,
-                        ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor:
+                          _isAdmin ? Color(0xFFD43C38) : Color(0xFFFF8A65),
+                      child: Icon(
+                        _isAdmin ? Icons.admin_panel_settings : Icons.person,
+                        color: Colors.white,
                       ),
-                      Text(
-                        _authService.getCurrentUserEmail(),
-                        style: const TextStyle(
-                          color: Color.fromARGB(255, 185, 182, 182),
-                        ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bienvenue, $username',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: AppSizes.subtitleFontSize(context),
+                              color:
+                                  _isAdmin ? Color(0xFFD43C38) : Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                          Text(
+                            _authService.getCurrentUserEmail(),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -703,50 +893,65 @@ class _HomeScreenState extends State<HomeScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'État du système',
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color.fromARGB(255, 187, 183, 183),
+            fontSize: AppSizes.titleFontSize(context) * 0.9,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            fontFamily: 'Inter',
           ),
         ),
-        const SizedBox(height: 10),
-        Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                _buildSensorStatusItem(
-                  icon: Icons.smoke_free,
-                  title: 'Détecteur de fumée',
-                  isActive: true,
+        SizedBox(height: AppSizes.height(context, 0.015)),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    _buildSensorStatusItem(
+                      icon: Icons.smoke_free,
+                      title: 'Détecteur de fumée',
+                      isActive: true,
+                    ),
+                    const Divider(color: Colors.white30),
+                    _buildSensorStatusItem(
+                      icon: Icons.thermostat,
+                      title: 'Détecteur de chaleur',
+                      isActive: true,
+                    ),
+                    const Divider(color: Colors.white30),
+                    _buildSensorStatusItem(
+                      icon: Icons.volume_up,
+                      title: 'Alarme sonore',
+                      isActive: _sensorData?.isAlarmActive ?? false,
+                      status:
+                          _sensorData?.isAlarmActive ?? false
+                              ? 'Active'
+                              : 'En attente',
+                      statusColor:
+                          _sensorData?.isAlarmActive ?? false
+                              ? Color(0xFFD43C38)
+                              : Color(0xFFFF8A65),
+                    ),
+                  ],
                 ),
-                const Divider(),
-                _buildSensorStatusItem(
-                  icon: Icons.thermostat,
-                  title: 'Détecteur de chaleur',
-                  isActive: true,
-                ),
-                const Divider(),
-                _buildSensorStatusItem(
-                  icon: Icons.volume_up,
-                  title: 'Alarme sonore',
-                  isActive: _sensorData?.isAlarmActive ?? false,
-                  status:
-                      _sensorData?.isAlarmActive ?? false
-                          ? 'Active'
-                          : 'En attente',
-                  statusColor:
-                      _sensorData?.isAlarmActive ?? false
-                          ? Colors.red
-                          : Colors.orange,
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -765,20 +970,32 @@ class _HomeScreenState extends State<HomeScreen>
       children: [
         CircleAvatar(
           radius: 20,
-          backgroundColor: Colors.grey.shade200,
-          child: Icon(icon, color: isActive ? Colors.green : Colors.orange),
+          backgroundColor: Colors.white.withOpacity(0.1),
+          child: Icon(
+            icon,
+            color: isActive ? Colors.greenAccent : Color(0xFFFF8A65),
+          ),
         ),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  fontFamily: 'Inter',
+                ),
+              ),
               Text(
                 status ?? (isActive ? 'Actif' : 'Inactif'),
                 style: TextStyle(
                   color:
-                      statusColor ?? (isActive ? Colors.green : Colors.orange),
+                      statusColor ??
+                      (isActive ? Colors.greenAccent : Color(0xFFFF8A65)),
+                  fontFamily: 'Inter',
                 ),
               ),
             ],
@@ -786,7 +1003,8 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         Switch(
           value: isActive,
-          activeColor: Colors.green,
+          activeColor: Colors.greenAccent,
+          inactiveThumbColor: Color(0xFFFF8A65),
           onChanged: (value) {
             // Logique pour activer/désactiver le capteur
           },
@@ -796,7 +1014,6 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildRecentAlertsSection() {
-    // Obtenir la liste des alertes du service
     final alerts = _sensorService.getAlerts();
 
     return Column(
@@ -805,12 +1022,13 @@ class _HomeScreenState extends State<HomeScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Dernières alertes',
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 187, 183, 183),
+                fontSize: AppSizes.titleFontSize(context) * 0.9,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                fontFamily: 'Inter',
               ),
             ),
             TextButton(
@@ -822,81 +1040,95 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 );
               },
-              child: const Text('Voir tout'),
+              child: Text(
+                'Voir tout',
+                style: TextStyle(
+                  color: Color(0xFFFF8A65),
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Inter',
+                ),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child:
-                alerts.isEmpty
-                    ? _buildEmptyAlertsState()
-                    : Column(
-                      children:
-                          alerts.take(3).map((alert) {
-                            IconData icon;
-                            Color iconColor;
+        SizedBox(height: AppSizes.height(context, 0.015)),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child:
+                    alerts.isEmpty
+                        ? _buildEmptyAlertsState()
+                        : Column(
+                          children:
+                              alerts.take(3).map((alert) {
+                                IconData icon;
+                                Color iconColor;
 
-                            switch (alert.type) {
-                              case AlertType.smoke:
-                                icon = Icons.smoke_free;
-                                iconColor = Colors.red;
-                                break;
-                              case AlertType.co2:
-                                icon = Icons.cloud;
-                                iconColor = Colors.orange;
-                                break;
-                              case AlertType.temperature: // Nouveau cas
-                                icon =
-                                    Icons
-                                        .thermostat; // Icône spécifique pour la température
-                                iconColor =
-                                    Colors
-                                        .red; // Couleur rouge pour indiquer la chaleur
-                                break;
-                              case AlertType.humidity: // Nouveau cas
-                                icon =
-                                    Icons
-                                        .water_drop; // Icône spécifique pour l'humidité
-                                iconColor =
-                                    Colors.blue; // Couleur bleue pour l'eau
-                                break;
-                              case AlertType.test:
-                                icon = Icons.check_circle;
-                                iconColor = Colors.blue;
-                                break;
-                              case AlertType.falseAlarm:
-                                icon = Icons.warning;
-                                iconColor = Colors.amber;
-                                break;
-                              case AlertType.systemFailure:
-                                icon = Icons.error;
-                                iconColor = Colors.red;
-                                break;
-                              case AlertType.info:
-                              default:
-                                icon = Icons.info;
-                                iconColor = Colors.blue;
-                                break;
-                            }
+                                switch (alert.type) {
+                                  case AlertType.smoke:
+                                    icon = Icons.smoke_free;
+                                    iconColor = Color(0xFFD43C38);
+                                    break;
+                                  case AlertType.co2:
+                                    icon = Icons.cloud;
+                                    iconColor = Color(0xFFFF8A65);
+                                    break;
+                                  case AlertType.temperature:
+                                    icon = Icons.thermostat;
+                                    iconColor = Color(0xFFD43C38);
+                                    break;
+                                  case AlertType.humidity:
+                                    icon = Icons.water_drop;
+                                    iconColor = Colors.blueAccent;
+                                    break;
+                                  case AlertType.test:
+                                    icon = Icons.check_circle;
+                                    iconColor = Colors.blueAccent;
+                                    break;
+                                  case AlertType.falseAlarm:
+                                    icon = Icons.warning;
+                                    iconColor = Colors.amber;
+                                    break;
+                                  case AlertType.systemFailure:
+                                    icon = Icons.error;
+                                    iconColor = Color(0xFFD43C38);
+                                    break;
+                                  case AlertType.info:
+                                  default:
+                                    icon = Icons.info;
+                                    iconColor = Colors.blueAccent;
+                                    break;
+                                }
 
-                            final date = _formatDate(alert.timestamp);
+                                final date = _formatDate(alert.timestamp);
 
-                            return _buildAlertItem(
-                              icon: icon,
-                              iconColor: iconColor,
-                              title: alert.title,
-                              status: alert.description,
-                              date: date,
-                            );
-                          }).toList(),
-                    ),
+                                return _buildAlertItem(
+                                  icon: icon,
+                                  iconColor: iconColor,
+                                  title: alert.title,
+                                  status: alert.description,
+                                  date: date,
+                                );
+                              }).toList(),
+                        ),
+              ),
+            ),
           ),
         ),
       ],
@@ -910,11 +1142,18 @@ class _HomeScreenState extends State<HomeScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.notifications_off, size: 40, color: Colors.grey[400]),
+            Icon(
+              Icons.notifications_off,
+              size: 40,
+              color: Colors.white.withOpacity(0.5),
+            ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Aucune alerte récente',
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontFamily: 'Inter',
+              ),
             ),
           ],
         ),
@@ -934,18 +1173,39 @@ class _HomeScreenState extends State<HomeScreen>
         backgroundColor: iconColor.withOpacity(0.2),
         child: Icon(icon, color: iconColor),
       ),
-      title: Text(title),
-      subtitle: Text(status, maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'Inter',
+        ),
+      ),
+      subtitle: Text(
+        status,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.7),
+          fontFamily: 'Inter',
+        ),
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(date, style: TextStyle(color: Colors.grey, fontSize: 12)),
+          Text(
+            date,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.6),
+              fontSize: 12,
+              fontFamily: 'Inter',
+            ),
+          ),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right),
+          Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.6)),
         ],
       ),
       onTap: () {
-        // Navigation vers les détails de l'alerte
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const NotificationsScreen()),

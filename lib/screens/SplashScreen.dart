@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../services/notification_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -11,58 +12,61 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  // Contrôleurs pour plusieurs animations
   late AnimationController _flameController;
   late AnimationController _waveController;
   late AnimationController _scaleController;
+  late AnimationController _fadeController;
 
-  // Animations
   late Animation<double> _flameAnimation;
   late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
 
-  // Liste de particules pour effet de flamme
   final List<Particle> _particles = [];
   final int _particleCount = 20;
 
   @override
   void initState() {
     super.initState();
+    NotificationService().initialize();
 
-    // Contrôleur pour l'animation de la flamme
     _flameController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1200),
     )..repeat();
 
-    // Contrôleur pour l'animation des vagues
     _waveController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
     )..repeat();
 
-    // Contrôleur pour l'animation d'échelle
     _scaleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
 
-    // Animation de flamme
-    _flameAnimation = Tween<double>(begin: 0, end: 1).animate(_flameController);
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..forward();
 
-    // Animation d'échelle
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
+    _flameAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _flameController, curve: Curves.easeInOut),
     );
+    _scaleAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeOutBack),
+    );
+    _fadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeIn));
 
-    // Initialiser les particules
     _initParticles();
-
-    // Démarrer l'animation d'échelle
     _scaleController.forward();
 
-    // Timer pour naviguer vers l'écran d'introduction après un délai
-    Timer(const Duration(seconds: 3), () {
-      Navigator.pushReplacementNamed(context, '/intro');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Timer(const Duration(seconds: 3), () {
+        Navigator.pushReplacementNamed(context, '/intro');
+      });
     });
   }
 
@@ -72,21 +76,21 @@ class _SplashScreenState extends State<SplashScreen>
       _particles.add(
         Particle(
           position: Offset(
-            -20 + random.nextDouble() * 40,
-            50 - random.nextDouble() * 100,
+            -10 + random.nextDouble() * 20, // Reduced range to [-10, 10]
+            -20 + random.nextDouble() * 40, // Reduced range to [-20, 20]
           ),
           velocity: Offset(
-            -1 + random.nextDouble() * 2,
-            -2 - random.nextDouble() * 2,
+            -0.5 + random.nextDouble() * 1, // Reduced range to [-0.5, 0.5]
+            -1 - random.nextDouble() * 1, // Reduced range to [-2, -1]
           ),
           color: Color.fromRGBO(
             255,
-            150 + random.nextInt(105),
-            random.nextInt(100),
-            0.5 + random.nextDouble() * 0.5,
+            147 + random.nextInt(108),
+            0,
+            0.7 + random.nextDouble() * 0.3,
           ),
-          size: 5 + random.nextDouble() * 15,
-          lifespan: 0.7 + random.nextDouble() * 0.3,
+          size: 6 + random.nextDouble() * 12,
+          lifespan: 0.9 + random.nextDouble() * 0.3,
         ),
       );
     }
@@ -97,6 +101,7 @@ class _SplashScreenState extends State<SplashScreen>
     _flameController.dispose();
     _waveController.dispose();
     _scaleController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
@@ -106,134 +111,179 @@ class _SplashScreenState extends State<SplashScreen>
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFFF7043), Color(0xFFE64A19)],
+            colors: [Color(0xFF8B0000), Color(0xFFFF4500), Color(0xFFFFD700)],
+            stops: [0.0, 0.5, 1.0],
           ),
         ),
         child: Stack(
           children: [
-            // Éléments d'arrière-plan
             Positioned.fill(
               child: CustomPaint(painter: BackgroundPainter(_waveController)),
             ),
-
-            // Contenu principal
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 40),
-
-                  // Logo avec animation de flamme
                   AnimatedBuilder(
                     animation: Listenable.merge([
                       _flameAnimation,
                       _scaleAnimation,
+                      _fadeAnimation,
                     ]),
                     builder: (context, child) {
-                      return Transform.scale(
-                        scale: _scaleAnimation.value,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Cercle blanc
-                            Container(
-                              height: screenSize.width * 0.4,
-                              width: screenSize.width * 0.4,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Effet de flamme animé
-                            SizedBox(
-                              height: screenSize.width * 0.5,
-                              width: screenSize.width * 0.5,
-                              child: CustomPaint(
-                                painter: FlamePainter(
-                                  _flameAnimation.value,
-                                  _particles,
-                                ),
-                              ),
-                            ),
-
-                            // Icône de feu
-                            const Icon(
-                              Icons.local_fire_department,
-                              size: 70,
-                              color: Color(0xFFE64A19),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 60),
-
-                  // Indicateur de chargement stylisé
-                  Container(
-                    width: 200,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                    child: AnimatedBuilder(
-                      animation: _flameController,
-                      builder: (context, child) {
-                        return FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: _flameController.value,
+                      return Opacity(
+                        opacity: _fadeAnimation.value,
+                        child: Transform.scale(
+                          scale: _scaleAnimation.value,
                           child: Container(
+                            height: screenSize.width * 0.45,
+                            width: screenSize.width * 0.45,
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(2),
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                colors: [
+                                  Colors.white.withOpacity(0.9),
+                                  Colors.white.withOpacity(0.4),
+                                  Colors.transparent,
+                                ],
+                                stops: [0.3, 0.7, 1.0],
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.white.withOpacity(0.5),
-                                  blurRadius: 6,
+                                  color: Colors.red.withOpacity(0.2),
+                                  blurRadius: 20,
+                                  spreadRadius: 5,
+                                ),
+                                BoxShadow(
+                                  color: Colors.white.withOpacity(0.3),
+                                  blurRadius: 15,
+                                  spreadRadius: 3,
+                                ),
+                              ],
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                                width: 2,
+                              ),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                CustomPaint(
+                                  size: Size(
+                                    screenSize.width * 0.35,
+                                    screenSize.width * 0.35,
+                                  ),
+                                  painter: FlamePainter(
+                                    _flameAnimation.value,
+                                    _particles,
+                                  ),
+                                ),
+                                ShaderMask(
+                                  shaderCallback:
+                                      (bounds) => LinearGradient(
+                                        colors: [
+                                          Color(0xFFFF4500),
+                                          Color(0xFFFFD700),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ).createShader(bounds),
+                                  child: Icon(
+                                    Icons.local_fire_department,
+                                    size: 70,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // Texte de chargement avec animation
-                  AnimatedBuilder(
-                    animation: _flameController,
-                    builder: (context, child) {
-                      final dotsCount =
-                          ((_flameController.value * 3) % 3).floor() + 1;
-                      final dots = '.' * dotsCount;
-                      return Text(
-                        'Chargement$dots',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
                         ),
                       );
                     },
                   ),
-
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 40),
+                  Container(
+                    width: 200,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(4),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.1),
+                          blurRadius: 8,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: AnimatedBuilder(
+                      animation: _flameController,
+                      builder: (context, child) {
+                        return Stack(
+                          children: [
+                            FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: _flameController.value,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(0xFFFF4500),
+                                      Color(0xFFFFD700),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.red.withOpacity(0.3),
+                                      blurRadius: 6,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  AnimatedBuilder(
+                    animation: Listenable.merge([
+                      _flameController,
+                      _fadeAnimation,
+                    ]),
+                    builder: (context, child) {
+                      final dotsCount =
+                          ((_flameController.value * 3) % 3).floor() + 1;
+                      final dots = '.' * dotsCount;
+                      return Opacity(
+                        opacity: _fadeAnimation.value,
+                        child: Text(
+                          'Chargement$dots',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Inter',
+                            letterSpacing: 1.5,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.2),
+                                offset: Offset(0, 2),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -244,7 +294,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-// Classe pour les particules de l'effet de flamme
 class Particle {
   Offset position;
   Offset velocity;
@@ -261,7 +310,6 @@ class Particle {
   });
 }
 
-// Peintre pour l'effet de flamme
 class FlamePainter extends CustomPainter {
   final double animationValue;
   final List<Particle> particles;
@@ -272,48 +320,51 @@ class FlamePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
 
-    // Dessiner les particules
     for (final particle in particles) {
       final paint =
           Paint()
             ..color = particle.color
-            ..style = PaintingStyle.fill;
+            ..style = PaintingStyle.fill
+            ..blendMode = BlendMode.plus;
 
-      // Mise à jour de la position avec l'animation
       final animatedPosition =
           center +
           particle.position +
           Offset(
-            particle.velocity.dx * animationValue * 10,
-            particle.velocity.dy * animationValue * 10,
+            particle.velocity.dx * animationValue * 8,
+            particle.velocity.dy * animationValue * 8,
           );
 
-      // Appliquer une variation basée sur la valeur d'animation sinusoïdale
-      final wobbleX = math.sin(animationValue * 2 * math.pi) * 5;
-      final wobbleY = math.cos(animationValue * 2 * math.pi) * 5;
+      final wobble = math.sin(animationValue * 2 * math.pi) * 3;
 
-      // Dessiner la particule avec une opacité décroissante
+      // Clamp the position to stay within canvas bounds, accounting for the radius
+      final radius = particle.size * (1 - animationValue * 0.4);
+      final clampedX = (animatedPosition.dx + wobble).clamp(
+        radius,
+        size.width - radius,
+      );
+      final clampedY = (animatedPosition.dy + wobble).clamp(
+        radius,
+        size.height - radius,
+      );
+      final clampedPosition = Offset(clampedX, clampedY);
+
       paint.color = particle.color.withOpacity(
-        math.max(0, particle.lifespan - (animationValue * 0.7)),
+        math.max(0, particle.lifespan - (animationValue * 0.6)),
       );
 
-      canvas.drawCircle(
-        animatedPosition + Offset(wobbleX, wobbleY),
-        particle.size * (1 - animationValue * 0.5),
-        paint,
-      );
+      canvas.drawCircle(clampedPosition, radius, paint);
     }
 
-    // Ajouter une lueur autour du centre
     final glowPaint =
         Paint()
-          ..color = const Color(0xFFFF7043).withOpacity(0.3)
+          ..color = Colors.red.withOpacity(0.2)
           ..style = PaintingStyle.fill
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
 
     canvas.drawCircle(
       center,
-      40 + (math.sin(animationValue * math.pi * 2) * 5),
+      35 + (math.sin(animationValue * math.pi * 2) * 4),
       glowPaint,
     );
   }
@@ -322,7 +373,6 @@ class FlamePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-// Peintre pour l'arrière-plan avec effet de vagues
 class BackgroundPainter extends CustomPainter {
   final AnimationController controller;
 
@@ -334,17 +384,17 @@ class BackgroundPainter extends CustomPainter {
     final h = size.height;
     final animValue = controller.value;
 
-    // Dessiner des formes ondulantes en arrière-plan
     for (int i = 0; i < 3; i++) {
-      final opacity = 0.1 - (i * 0.03);
+      final opacity = 0.08 - (i * 0.015);
       final phase = animValue * 2 * math.pi + (i * math.pi / 3);
 
       final path = Path();
       path.moveTo(0, h * 0.7);
 
-      for (double x = 0; x <= w; x += w / 20) {
-        final y =
-            h * 0.7 + math.sin(x / w * 4 * math.pi + phase) * 50 + (i * 30);
+      for (double x = 0; x <= w; x += w / 40) {
+        final rawY =
+            h * 0.7 + math.sin(x / w * 5 * math.pi + phase) * 50 + (i * 30);
+        final y = rawY.clamp(0.0, h);
         path.lineTo(x, y);
       }
 
@@ -356,38 +406,24 @@ class BackgroundPainter extends CustomPainter {
         path,
         Paint()
           ..color = Colors.white.withOpacity(opacity)
-          ..style = PaintingStyle.fill,
+          ..style = PaintingStyle.fill
+          ..blendMode = BlendMode.overlay,
       );
     }
 
-    // Dessiner quelques cercles décoratifs
     for (double i = 0; i < 5; i++) {
-      final phase = animValue * 2 * math.pi + (i * math.pi / 2.5);
+      final phase = animValue * 2 * math.pi + (i * math.pi / 4);
       final radius = 15 + (i * 10);
-      final x = w * 0.2 + math.cos(phase) * 30;
-      final y = h * 0.2 + math.sin(phase) * 20;
+      final x = w * (0.15 + i * 0.12) + math.cos(phase) * 30;
+      final y = h * (0.25 + i * 0.08) + math.sin(phase) * 25;
 
       canvas.drawCircle(
         Offset(x, y),
         radius,
         Paint()
-          ..color = Colors.white.withOpacity(0.05)
-          ..style = PaintingStyle.fill,
-      );
-    }
-
-    for (double i = 0; i < 3; i++) {
-      final phase = -animValue * 2 * math.pi + (i * math.pi / 2);
-      final radius = 20 + (i * 15);
-      final x = w * 0.8 + math.cos(phase) * 20;
-      final y = h * 0.6 + math.sin(phase) * 30;
-
-      canvas.drawCircle(
-        Offset(x, y),
-        radius,
-        Paint()
-          ..color = Colors.white.withOpacity(0.07)
-          ..style = PaintingStyle.fill,
+          ..color = Colors.white.withOpacity(0.06)
+          ..style = PaintingStyle.fill
+          ..blendMode = BlendMode.overlay,
       );
     }
   }

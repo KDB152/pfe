@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'dart:math' as math;
 
 class IntroScreen extends StatefulWidget {
   const IntroScreen({Key? key}) : super(key: key);
@@ -12,21 +13,60 @@ class _IntroScreenState extends State<IntroScreen>
     with SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
   late AnimationController _animationController;
-  late Animation<double> _animation;
+  late Animation<double> _gradientAnimation;
+  late Animation<double> _particleAnimation;
   int _currentPage = 0;
   final int _numPages = 3;
+  final List<Particle> _particles = [];
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 3), // Rapide pour plus d'énergie
     )..repeat(reverse: true);
 
-    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    _gradientAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOutSine,
+      ),
     );
+
+    _particleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.linear),
+    );
+
+    _initParticles();
+  }
+
+  void _initParticles() {
+    final random = math.Random();
+    for (int i = 0; i < 30; i++) {
+      _particles.add(
+        Particle(
+          position: Offset(
+            random.nextDouble() * 500,
+            random.nextDouble() * 1000,
+          ),
+          velocity: Offset(
+            random.nextDouble() * 3 - 1.5,
+            random.nextDouble() * 3 - 1.5,
+          ),
+          color: Color.fromRGBO(
+            255,
+            87 +
+                random.nextInt(
+                  120,
+                ), // Variations autour de la palette d'origine
+            34 + random.nextInt(50),
+            0.5 + random.nextDouble() * 0.5,
+          ),
+          size: 3 + random.nextDouble() * 12,
+        ),
+      );
+    }
   }
 
   @override
@@ -46,24 +86,44 @@ class _IntroScreenState extends State<IntroScreen>
 
   Widget _indicator(bool isActive) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      margin: const EdgeInsets.symmetric(horizontal: 8.0),
-      height: 8.0,
-      width: isActive ? 24.0 : 16.0,
+      duration: const Duration(milliseconds: 250),
+      margin: const EdgeInsets.symmetric(horizontal: 4.0),
+      height: 10.0,
+      width: isActive ? 28.0 : 10.0,
       decoration: BoxDecoration(
-        color: isActive ? Colors.white : Colors.white.withOpacity(0.4),
-        borderRadius: const BorderRadius.all(Radius.circular(12)),
+        gradient: LinearGradient(
+          colors:
+              isActive
+                  ? [const Color(0xFFFF5722), const Color(0xFFFFA726)]
+                  : [
+                    Colors.white.withOpacity(0.3),
+                    Colors.white.withOpacity(0.3),
+                  ],
+        ),
+        borderRadius: BorderRadius.circular(12),
         boxShadow:
             isActive
                 ? [
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    color: const Color(0xFFFF5722).withOpacity(0.5),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
                 ]
                 : null,
       ),
+      child:
+          isActive
+              ? Transform.scale(
+                scale: 1.0 + 0.1 * math.sin(_gradientAnimation.value * math.pi),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              )
+              : null,
     );
   }
 
@@ -77,7 +137,7 @@ class _IntroScreenState extends State<IntroScreen>
           // Fond animé
           Positioned.fill(
             child: AnimatedBuilder(
-              animation: _animation,
+              animation: _animationController,
               builder: (context, child) {
                 return Container(
                   decoration: BoxDecoration(
@@ -85,12 +145,21 @@ class _IntroScreenState extends State<IntroScreen>
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Color(0xFFFF7043),
-                        Color(0xFFFF5722),
-                        Color(0xFFE64A19),
+                        const Color(0xFFB71C1C), // Palette d'origine
+                        const Color(0xFFFF5722),
+                        const Color(0xFFFFA726),
                       ],
-                      stops: [0.1, 0.5, 0.9],
-                      transform: GradientRotation(_animation.value * 0.2),
+                      stops: const [0.1, 0.5, 0.9],
+                      transform: GradientRotation(
+                        _gradientAnimation.value * 0.6,
+                      ),
+                    ),
+                  ),
+                  child: CustomPaint(
+                    painter: ParticlePainter(
+                      _particleAnimation.value,
+                      _particles,
+                      screenSize,
                     ),
                   ),
                 );
@@ -98,38 +167,46 @@ class _IntroScreenState extends State<IntroScreen>
             ),
           ),
 
-          // Éléments graphiques de fond
-          Positioned.fill(child: CustomPaint(painter: BackgroundPainter())),
-
           // Contenu principal
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(top: 16.0, right: 24.0),
+                  padding: const EdgeInsets.only(top: 16.0, right: 16.0),
                   child: Align(
                     alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
+                    child: GestureDetector(
+                      onTap: () {
                         Navigator.pushReplacementNamed(context, '/login');
                       },
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                          horizontal: 24,
+                          vertical: 12,
                         ),
-                        shape: RoundedRectangleBorder(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF5722), Color(0xFFFFA726)],
+                          ),
                           borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF5722).withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                      ),
-                      child: const Text(
-                        'Ignorer',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.0,
-                          fontWeight: FontWeight.w500,
+                        child: const Text(
+                          'Passer',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Inter',
+                          ),
                         ),
                       ),
                     ),
@@ -154,7 +231,7 @@ class _IntroScreenState extends State<IntroScreen>
                 ),
 
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 20.0),
+                  padding: const EdgeInsets.only(bottom: 16.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: _buildPageIndicator(),
@@ -163,36 +240,49 @@ class _IntroScreenState extends State<IntroScreen>
 
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 30.0,
-                    vertical: 30.0,
+                    horizontal: 24.0,
+                    vertical: 16.0,
                   ),
-                  child: ElevatedButton(
-                    onPressed: () {
+                  child: GestureDetector(
+                    onTap: () {
                       if (_currentPage == _numPages - 1) {
                         Navigator.pushReplacementNamed(context, '/login');
                       } else {
                         _pageController.nextPage(
-                          duration: const Duration(milliseconds: 500),
-                          curve: Curves.easeInOut,
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeInOutBack,
                         );
                       }
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFFE64A19),
-                      elevation: 8,
-                      shadowColor: Colors.black.withOpacity(0.3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30.0),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 18.0),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF5722), Color(0xFFFFA726)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF5722).withOpacity(0.5),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    ),
-                    child: Text(
-                      _currentPage == _numPages - 1 ? 'COMMENCER' : 'SUIVANT',
-                      style: const TextStyle(
-                        fontSize: 18.0,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
+                      child: Center(
+                        child: Text(
+                          _currentPage == _numPages - 1
+                              ? 'Commencer'
+                              : 'Suivant',
+                          style: const TextStyle(
+                            fontSize: 20.0,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            fontFamily: 'Inter',
+                            letterSpacing: 0.8,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -207,35 +297,43 @@ class _IntroScreenState extends State<IntroScreen>
 
   Widget _buildFirstPage(Size screenSize) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Logo animé
           AnimatedBuilder(
-            animation: _animation,
+            animation: _animationController,
             builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(0, 4 * _animation.value),
+              return Transform.scale(
+                scale:
+                    1.0 +
+                    0.15 * math.sin(_gradientAnimation.value * math.pi * 2),
                 child: Container(
-                  height: screenSize.height * 0.25,
-                  width: screenSize.height * 0.25,
+                  height: screenSize.height * 0.3,
+                  width: screenSize.height * 0.3,
                   decoration: BoxDecoration(
-                    color: Colors.white,
                     shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.4),
+                        const Color(0xFFFF5722).withOpacity(0.3),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.2, 0.6, 1.0],
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
+                        color: const Color(0xFFFF5722).withOpacity(0.4),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
                       ),
                     ],
                   ),
                   child: const Center(
                     child: Icon(
                       Icons.local_fire_department,
-                      size: 80,
-                      color: Color(0xFFE64A19),
+                      size: 100,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -243,48 +341,72 @@ class _IntroScreenState extends State<IntroScreen>
             },
           ),
 
-          const SizedBox(height: 40.0),
+          const SizedBox(height: 32.0),
 
-          // Titre avec style amélioré
-          ShaderMask(
-            shaderCallback:
-                (bounds) => const LinearGradient(
-                  colors: [Colors.white, Colors.white70],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ).createShader(bounds),
-            child: const Text(
-              'Bienvenue sur\nDétecteur Incendie',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28.0,
-                fontWeight: FontWeight.bold,
-                height: 1.3,
+          AnimatedOpacity(
+            opacity: _currentPage == 0 ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 500),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.5),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: _animationController,
+                  curve: Curves.easeOutCubic,
+                ),
               ),
-              textAlign: TextAlign.center,
+              child: const Text(
+                'Bienvenue dans\nDétecteur d’Incendie',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 36.0,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Inter',
+                  height: 1.2,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
 
-          const SizedBox(height: 20.0),
+          const SizedBox(height: 16.0),
 
-          // Description avec container décoré
-          ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          AnimatedOpacity(
+            opacity: _currentPage == 0 ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 500),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.5),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: _animationController,
+                  curve: Curves.easeOutCubic,
+                ),
+              ),
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
-                    width: 1.5,
-                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFF5722).withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: const Text(
-                  'Votre application de surveillance et d\'alerte incendie',
-                  style: TextStyle(color: Colors.white, fontSize: 18.0),
+                  'Protection incendie en temps réel avec alertes instantanées',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18.0,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w500,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -297,105 +419,134 @@ class _IntroScreenState extends State<IntroScreen>
 
   Widget _buildSecondPage(Size screenSize) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Animation des capteurs - taille réduite
           SizedBox(
-            height: screenSize.height * 0.22, // Réduit de 0.25 à 0.22
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Cercles pulsants - même contenu
-                AnimatedBuilder(
-                  animation: _animation,
-                  builder: (context, child) {
-                    return Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(
-                          width: 180 + (40 * _animation.value),
-                          height: 180 + (40 * _animation.value),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(
-                              0.1 * (1 - _animation.value),
-                            ),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(
-                                0.3 * (1 - _animation.value),
-                              ),
-                              width: 2,
-                            ),
+            height: screenSize.height * 0.25,
+            child: AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Transform.rotate(
+                      angle: _gradientAnimation.value * math.pi,
+                      child: Container(
+                        width: 180 + (60 * _gradientAnimation.value),
+                        height: 180 + (60 * _gradientAnimation.value),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              const Color(0xFFFF5722).withOpacity(0.3),
+                              Colors.transparent,
+                            ],
                           ),
                         ),
-                        Container(
-                          width: 120 + (30 * _animation.value),
-                          height: 120 + (30 * _animation.value),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(
-                              0.15 * (1 - _animation.value),
-                            ),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(
-                                0.4 * (1 - _animation.value),
-                              ),
-                              width: 2,
-                            ),
-                          ),
+                      ),
+                    ),
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [Color(0xFFFF5722), Color(0xFFFFA726)],
                         ),
-                        // Icône du capteur
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
+                      ),
+                      child: Transform.scale(
+                        scale:
+                            1.0 +
+                            0.1 * math.sin(_gradientAnimation.value * math.pi),
+                        child: const Center(
+                          child: Icon(
+                            Icons.sensors,
+                            size: 50,
                             color: Colors.white,
                           ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.sensors,
-                              size: 40,
-                              color: Color(0xFFE64A19),
-                            ),
-                          ),
                         ),
-                      ],
-                    );
-                  },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 24.0),
+
+          AnimatedOpacity(
+            opacity: _currentPage == 1 ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 500),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.5),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: _animationController,
+                  curve: Curves.easeOutCubic,
                 ),
-              ],
+              ),
+              child: const Text(
+                'Détection en temps réel',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 30.0,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Inter',
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
 
-          const SizedBox(height: 30.0), // Réduit de 40.0 à 30.0
-          // Titre
-          const Text(
-            'Détection en temps réel',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28.0,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
+          const SizedBox(height: 16.0),
 
-          const SizedBox(height: 15.0), // Réduit de 20.0 à 15.0
-          // Points d'information dans des cartes
           Column(
             children: [
-              _buildInfoCard(
-                'Capteurs intelligents',
-                'Réseau de capteurs connectés pour une surveillance constante',
-                Icons.wifi_tethering,
+              AnimatedOpacity(
+                opacity: _currentPage == 1 ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 500),
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.5),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: _animationController,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
+                  child: _buildInfoCard(
+                    'Capteurs Intelligents',
+                    'Surveillance continue via un réseau connecté',
+                    Icons.wifi_tethering,
+                  ),
+                ),
               ),
-              const SizedBox(height: 12), // Réduit de 16 à 12
-              _buildInfoCard(
-                'Alertes instantanées',
-                'Notifications immédiates en cas de détection',
-                Icons.notifications_active,
+              const SizedBox(height: 12),
+              AnimatedOpacity(
+                opacity: _currentPage == 1 ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 500),
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.5),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: _animationController,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
+                  child: _buildInfoCard(
+                    'Alertes Instantanées',
+                    'Notifications dès détection d’anomalie',
+                    Icons.notifications_active,
+                  ),
+                ),
               ),
             ],
           ),
@@ -406,246 +557,355 @@ class _IntroScreenState extends State<IntroScreen>
 
   Widget _buildThirdPage(Size screenSize) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Animation d'aide
-          AnimatedBuilder(
-            animation: _animation,
-            builder: (context, child) {
-              return Container(
-                height: screenSize.height * 0.25,
-                width: screenSize.width * 0.8,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
-                    width: 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.1 * _animation.value),
-                      blurRadius: 20,
-                      spreadRadius: 5,
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 16.0),
+            AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale:
+                      1.0 + 0.1 * math.sin(_gradientAnimation.value * math.pi),
+                  child: Container(
+                    height: screenSize.height * 0.3,
+                    width: screenSize.width * 0.8,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.2),
+                          const Color(0xFFFF5722).withOpacity(0.3),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF5722).withOpacity(0.4),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.support_agent,
-                    size: 80,
-                    color: Colors.white,
+                    child: const Center(
+                      child: Icon(
+                        Icons.support_agent,
+                        size: 100,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 32.0),
+
+            AnimatedOpacity(
+              opacity: _currentPage == 2 ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 500),
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.5),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+                child: const Text(
+                  'Besoin d’Aide ?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 36.0,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'Inter',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24.0),
+
+            AnimatedOpacity(
+              opacity: _currentPage == 2 ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 500),
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.5),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+                child: _buildContactItem(
+                  Icons.phone,
+                  'Téléphone',
+                  '+216 22 900 603',
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            AnimatedOpacity(
+              opacity: _currentPage == 2 ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 500),
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.5),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+                child: _buildContactItem(
+                  Icons.email,
+                  'E-mail',
+                  'detecteurincendie7@gmail.com',
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            AnimatedOpacity(
+              opacity: _currentPage == 2 ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 500),
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.5),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+                child: _buildContactItem(
+                  Icons.access_time,
+                  'Disponibilité',
+                  '24/7',
+                ),
+              ),
+            ),
+            const SizedBox(height: 16.0),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String title, String description, IconData icon) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.15),
+            const Color(0xFFFF5722).withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF5722).withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, child) {
+              return Transform.scale(
+                scale:
+                    1.0 +
+                    0.1 * math.sin(_gradientAnimation.value * math.pi * 2),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFFF5722), Color(0xFFFFA726)],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 28),
                 ),
               );
             },
           ),
-
-          const SizedBox(height: 40.0),
-
-          // Titre
-          const Text(
-            'Besoin d\'aide ?',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28.0,
-              fontWeight: FontWeight.bold,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Inter',
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                    fontFamily: 'Inter',
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ],
             ),
-            textAlign: TextAlign.center,
-          ),
-
-          const SizedBox(height: 30.0),
-
-          // Informations de contact avec icônes
-          _buildContactItem(Icons.phone, 'Téléphone', '+216 22 900 603'),
-          const SizedBox(height: 16),
-          _buildContactItem(
-            Icons.email,
-            'Email',
-            'detecteurincendie7@gmail.com',
-          ),
-          const SizedBox(height: 16),
-          _buildContactItem(
-            Icons.access_time,
-            'Disponibilité',
-            '24h/24 et 7j/7',
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoCard(String title, String description, IconData icon) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
-          ),
-          child: Row(
-            crossAxisAlignment:
-                CrossAxisAlignment
-                    .center, // Assurez-vous que les éléments sont centrés
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: Colors.white, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow:
-                          TextOverflow
-                              .ellipsis, // Évite le débordement du texte
-                      maxLines: 1,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 14,
-                      ),
-                      overflow:
-                          TextOverflow
-                              .ellipsis, // Évite le débordement du texte
-                      maxLines: 2,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildContactItem(IconData icon, String title, String value) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: Colors.white, size: 24),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.15),
+            const Color(0xFFFF5722).withOpacity(0.1),
+          ],
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF5722).withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-        ),
-      ],
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, child) {
+              return Transform.scale(
+                scale:
+                    1.0 +
+                    0.1 * math.sin(_gradientAnimation.value * math.pi * 2),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFFF5722), Color(0xFFFFA726)],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 28),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Inter',
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// Peintre personnalisé pour les éléments graphiques d'arrière-plan
-class BackgroundPainter extends CustomPainter {
+class Particle {
+  Offset position;
+  Offset velocity;
+  Color color;
+  double size;
+
+  Particle({
+    required this.position,
+    required this.velocity,
+    required this.color,
+    required this.size,
+  });
+}
+
+class ParticlePainter extends CustomPainter {
+  final double animationValue;
+  final List<Particle> particles;
+  final Size screenSize;
+
+  ParticlePainter(this.animationValue, this.particles, this.screenSize);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = Colors.white.withOpacity(0.1)
-          ..style = PaintingStyle.fill;
+    for (final particle in particles) {
+      final paint =
+          Paint()
+            ..color = particle.color
+            ..style = PaintingStyle.fill
+            ..blendMode = BlendMode.plus;
 
-    // Formes géométriques en arrière-plan
-    final path1 =
-        Path()
-          ..moveTo(0, size.height * 0.2)
-          ..quadraticBezierTo(
-            size.width * 0.25,
-            size.height * 0.25,
-            size.width * 0.5,
-            size.height * 0.2,
-          )
-          ..quadraticBezierTo(
-            size.width * 0.75,
-            size.height * 0.15,
-            size.width,
-            size.height * 0.3,
-          )
-          ..lineTo(size.width, 0)
-          ..lineTo(0, 0)
-          ..close();
+      final animatedPosition =
+          particle.position +
+          Offset(
+            particle.velocity.dx * animationValue * 12,
+            particle.velocity.dy * animationValue * 12,
+          );
 
-    final path2 =
-        Path()
-          ..moveTo(size.width, size.height * 0.8)
-          ..quadraticBezierTo(
-            size.width * 0.75,
-            size.height * 0.85,
-            size.width * 0.5,
-            size.height * 0.8,
-          )
-          ..quadraticBezierTo(
-            size.width * 0.25,
-            size.height * 0.75,
-            0,
-            size.height * 0.9,
-          )
-          ..lineTo(0, size.height)
-          ..lineTo(size.width, size.height)
-          ..close();
+      final clampedX = animatedPosition.dx.clamp(0.0, screenSize.width);
+      final clampedY = animatedPosition.dy.clamp(0.0, screenSize.height);
+      final clampedPosition = Offset(clampedX, clampedY);
 
-    canvas.drawPath(path1, paint);
-    canvas.drawPath(path2, paint);
-
-    // Quelques cercles décoratifs
-    canvas.drawCircle(
-      Offset(size.width * 0.15, size.height * 0.4),
-      30,
-      Paint()..color = Colors.white.withOpacity(0.07),
-    );
-
-    canvas.drawCircle(
-      Offset(size.width * 0.85, size.height * 0.6),
-      50,
-      Paint()..color = Colors.white.withOpacity(0.05),
-    );
+      canvas.drawCircle(
+        clampedPosition,
+        particle.size * (1 - animationValue * 0.3),
+        paint,
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

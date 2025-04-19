@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/sensor_data_model.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:overlay_support/overlay_support.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -11,11 +13,169 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   List<Alert> _notifications = [];
   bool _isLoading = true;
+  late DatabaseReference _alertsRef;
 
   @override
   void initState() {
     super.initState();
     _loadNotifications();
+    _setupRealtimeAlertsListener();
+  }
+
+  @override
+  void dispose() {
+    _alertsRef.onValue.drain();
+    super.dispose();
+  }
+
+  void _setupRealtimeAlertsListener() {
+    // Référence à la base de données Firebase Realtime
+    _alertsRef = FirebaseDatabase.instance.ref('alerts');
+
+    // Écouter les mises à jour en temps réel
+    _alertsRef.onValue.listen(
+      (event) {
+        if (event.snapshot.value != null) {
+          final alertsData = Map<String, dynamic>.from(
+            event.snapshot.value as Map,
+          );
+
+          alertsData.forEach((key, value) {
+            final alertData = Map<String, dynamic>.from(value);
+
+            // Vérifier si l'alerte est active
+            if (alertData['isActive'] == true) {
+              final alert = Alert(
+                id: key,
+                title: alertData['title'] ?? 'Alerte',
+                description:
+                    alertData['description'] ?? 'Nouvelle alerte détectée',
+                timestamp: DateTime.fromMillisecondsSinceEpoch(
+                  alertData['timestamp'] ??
+                      DateTime.now().millisecondsSinceEpoch,
+                ),
+                type: _getAlertTypeFromString(alertData['type'] ?? 'info'),
+              );
+
+              // Afficher la notification temporaire
+              _showTemporaryNotification(alert);
+
+              // Ajouter à la liste des notifications si elle n'existe pas déjà
+              if (!_notifications.any((n) => n.id == alert.id)) {
+                setState(() {
+                  _notifications.insert(0, alert);
+                });
+              }
+            }
+          });
+        }
+      },
+      onError: (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de connexion à la base de données: $error'),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showTemporaryNotification(Alert alert) {
+    // Utilise la bibliothèque overlay_support pour afficher les notifications en haut
+    showOverlayNotification(
+      (context) {
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          child: SafeArea(
+            child: ListTile(
+              leading: _buildAlertIcon(alert.type),
+              title: Text(
+                alert.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                alert.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () {
+                OverlaySupportEntry.of(context)?.dismiss();
+                // Naviguer vers les détails de la notification
+                Navigator.pushNamed(
+                  context,
+                  '/alert-details',
+                  arguments: alert,
+                );
+              },
+            ),
+          ),
+        );
+      },
+      duration: const Duration(
+        seconds: 3,
+      ), // La notification disparaît après 3 secondes
+    );
+  }
+
+  Widget _buildAlertIcon(AlertType type) {
+    final IconData iconData;
+    final Color iconColor;
+
+    switch (type) {
+      case AlertType.smoke:
+        iconData = Icons.smoke_free;
+        iconColor = Colors.red;
+        break;
+      case AlertType.co2:
+        iconData = Icons.whatshot;
+        iconColor = Colors.orange;
+        break;
+      case AlertType.test:
+        iconData = Icons.check_circle;
+        iconColor = Colors.blue;
+        break;
+      case AlertType.falseAlarm:
+        iconData = Icons.warning;
+        iconColor = Colors.amber;
+        break;
+      case AlertType.systemFailure:
+        iconData = Icons.error;
+        iconColor = Colors.red;
+        break;
+      case AlertType.info:
+      default:
+        iconData = Icons.info;
+        iconColor = Colors.blue;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: iconColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(iconData, color: iconColor, size: 24),
+    );
+  }
+
+  AlertType _getAlertTypeFromString(String typeStr) {
+    switch (typeStr.toLowerCase()) {
+      case 'smoke':
+        return AlertType.smoke;
+      case 'co2':
+        return AlertType.co2;
+      case 'test':
+        return AlertType.test;
+      case 'falsealarm':
+        return AlertType.falseAlarm;
+      case 'systemfailure':
+        return AlertType.systemFailure;
+      case 'info':
+      default:
+        return AlertType.info;
+    }
   }
 
   Future<void> _loadNotifications() async {
@@ -24,40 +184,42 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     });
 
     try {
-      // Simulez une récupération de notifications
-      await Future.delayed(const Duration(seconds: 1));
+      // Récupérer l'historique des notifications depuis Firebase
+      final snapshot = await FirebaseDatabase.instance.ref('alerts').get();
 
-      final now = DateTime.now();
+      if (snapshot.exists) {
+        final List<Alert> loadedNotifications = [];
+        final alertsData = Map<String, dynamic>.from(snapshot.value as Map);
 
-      setState(() {
-        _notifications = [
-          Alert(
-            id: '1',
-            title: 'Test du système',
-            description:
-                'Test de routine du système de détection d\'incendie complété avec succès.',
-            timestamp: DateTime(now.year, now.month, now.day, 8, 23),
-            type: AlertType.test,
-          ),
-          Alert(
-            id: '2',
-            title: 'Alerte de fumée',
-            description:
-                'Détection de fumée dans la cuisine. Vérification effectuée: fausse alerte.',
-            timestamp: DateTime(now.year, now.month, now.day - 4, 14, 17),
-            type: AlertType.falseAlarm,
-          ),
-          Alert(
-            id: '3',
-            title: 'Batterie faible',
-            description:
-                'Le niveau de batterie du détecteur est bas. Veuillez remplacer les piles.',
-            timestamp: DateTime(now.year, now.month, now.day - 7, 9, 45),
-            type: AlertType.systemFailure,
-          ),
-        ];
-        _isLoading = false;
-      });
+        alertsData.forEach((key, value) {
+          final alertData = Map<String, dynamic>.from(value);
+
+          loadedNotifications.add(
+            Alert(
+              id: key,
+              title: alertData['title'] ?? 'Alerte',
+              description: alertData['description'] ?? 'Alerte détectée',
+              timestamp: DateTime.fromMillisecondsSinceEpoch(
+                alertData['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
+              ),
+              type: _getAlertTypeFromString(alertData['type'] ?? 'info'),
+            ),
+          );
+        });
+
+        // Trier par date (plus récente en premier)
+        loadedNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+        setState(() {
+          _notifications = loadedNotifications;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _notifications = [];
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -122,56 +284,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildNotificationItem(Alert notification) {
-    final IconData iconData;
-    final Color iconColor;
-
-    switch (notification.type) {
-      case AlertType.smoke:
-        iconData = Icons.smoke_free;
-        iconColor = Colors.red;
-        break;
-      case AlertType.co2:
-        iconData = Icons.whatshot;
-        iconColor = Colors.orange;
-        break;
-      case AlertType.test:
-        iconData = Icons.check_circle;
-        iconColor = Colors.blue;
-        break;
-      case AlertType.falseAlarm:
-        iconData = Icons.warning;
-        iconColor = Colors.amber;
-        break;
-      case AlertType.systemFailure:
-        iconData = Icons.error;
-        iconColor = Colors.red;
-        break;
-      case AlertType.info:
-      default:
-        iconData = Icons.info;
-        iconColor = Colors.blue;
-        break;
-    }
-
     final dateFormat = _formatDate(notification.timestamp);
 
     return InkWell(
       onTap: () {
         // Naviguer vers les détails de la notification
+        Navigator.pushNamed(context, '/alert-details', arguments: notification);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(iconData, color: iconColor, size: 24),
-            ),
+            _buildAlertIcon(notification.type),
             const SizedBox(width: 16),
             Expanded(
               child: Column(

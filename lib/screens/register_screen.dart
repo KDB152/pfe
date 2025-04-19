@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../widgets/custom_text_field.dart';
-import '../widgets/custom_button.dart';
 import '../screens/login_screen.dart';
 import '../screens/verify_email_screen.dart';
 import '../widgets/fire_detection_background.dart';
+import '../utils/constants.dart';
+import 'dart:ui';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -14,7 +14,8 @@ class RegisterScreen extends StatefulWidget {
   _RegisterScreenState createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -23,6 +24,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   String _errorMessage = '';
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..forward();
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
+    );
+  }
 
   @override
   void dispose() {
@@ -30,6 +52,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -41,14 +64,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       try {
-        // Register user
         await _authService.registerWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text,
           _usernameController.text.trim(),
         );
 
-        // Navigate to email verification screen
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -59,19 +80,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         setState(() {
           switch (e.code) {
             case 'weak-password':
-              _errorMessage = 'Ce mot de passe est trop faible.';
+              _errorMessage = 'Le mot de passe est trop faible.';
               break;
             case 'email-already-in-use':
-              _errorMessage =
-                  'Un compte existe déjà avec cet e-mail. \n Essayer de réinitialiser votre mot de passe.';
+              _errorMessage = 'Un compte existe déjà avec cet e-mail.';
               break;
             default:
-              _errorMessage = 'Registration failed. Please try again.';
+              _errorMessage = 'Échec de l\'inscription. Veuillez réessayer.';
           }
         });
       } catch (e) {
         setState(() {
-          _errorMessage = 'An unexpected error occurred.';
+          _errorMessage = 'Une erreur inattendue s\'est produite.';
         });
       } finally {
         setState(() {
@@ -83,197 +103,489 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final double contentPadding = AppSizes.contentPadding(context);
+    final double logoSize = AppSizes.width(context, 0.2);
+    final double spacingLarge = AppSizes.height(context, 0.025);
+    final double spacingMedium = AppSizes.height(context, 0.015);
+    final double spacingSmall = AppSizes.height(context, 0.008);
+
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       body: FireDetectionBackground(
         child: SafeArea(
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Logo
-                  Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.deepOrange.shade50,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Icon(
-                              Icons.local_fire_department,
-                              color: const Color.fromARGB(255, 255, 0, 0),
-                              size: 70,
+          child: Center(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.all(contentPadding),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        padding: EdgeInsets.all(contentPadding),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 20,
+                              offset: Offset(0, 5),
                             ),
+                          ],
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
                           ),
                         ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Détecteur Incendie',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: const Color.fromARGB(255, 255, 0, 0),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Logo and title
+                              Center(
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: logoSize,
+                                      height: logoSize,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Color(0xFFD43C38),
+                                            Color(0xFFFF8A65),
+                                          ],
+                                        ),
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Color(
+                                              0xFFD43C38,
+                                            ).withOpacity(0.4),
+                                            blurRadius: 12,
+                                            offset: Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.local_fire_department,
+                                          color: Colors.white,
+                                          size: logoSize * 0.6,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(height: spacingMedium),
+                                    Text(
+                                      'Détecteur Incendie',
+                                      style: TextStyle(
+                                        fontSize:
+                                            AppSizes.titleFontSize(context) *
+                                            1.1,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                        fontFamily: 'Inter',
+                                      ),
+                                    ),
+                                    SizedBox(height: spacingSmall),
+                                    Text(
+                                      'Créez un compte pour une protection optimale',
+                                      style: TextStyle(
+                                        fontSize:
+                                            AppSizes.bodyFontSize(context) *
+                                            0.9,
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontFamily: 'Inter',
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: spacingLarge * 1.5),
+
+                              // Page title
+                              Text(
+                                'Inscription',
+                                style: TextStyle(
+                                  fontSize: AppSizes.titleFontSize(context),
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  fontFamily: 'Inter',
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: spacingLarge),
+
+                              // Form fields
+                              CustomTextField(
+                                controller: _usernameController,
+                                label: 'Nom d\'utilisateur',
+                                hint: 'Entrez votre nom d\'utilisateur',
+                                prefixIcon: Icons.person_outline,
+                                iconColor: Color(0xFFFF8A65),
+                                labelStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: AppSizes.bodyFontSize(context),
+                                  fontFamily: 'Inter',
+                                ),
+                                borderRadius: 12,
+                                focusedBorderColor: Color(0xFFD43C38),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Veuillez entrer un nom d\'utilisateur';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: spacingMedium),
+                              CustomTextField(
+                                controller: _emailController,
+                                label: 'E-mail',
+                                hint: 'Entrez votre e-mail',
+                                prefixIcon: Icons.email_outlined,
+                                iconColor: Color(0xFFFF8A65),
+                                labelStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: AppSizes.bodyFontSize(context),
+                                  fontFamily: 'Inter',
+                                ),
+                                borderRadius: 12,
+                                focusedBorderColor: Color(0xFFD43C38),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Veuillez entrer votre email';
+                                  }
+                                  if (!RegExp(
+                                    r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                  ).hasMatch(value)) {
+                                    return 'Veuillez entrer un email valide';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: spacingMedium),
+                              CustomTextField(
+                                controller: _passwordController,
+                                label: 'Mot de passe',
+                                hint: 'Entrez votre mot de passe',
+                                prefixIcon: Icons.lock_outline,
+                                iconColor: Color(0xFFFF8A65),
+                                labelStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: AppSizes.bodyFontSize(context),
+                                  fontFamily: 'Inter',
+                                ),
+                                borderRadius: 12,
+                                focusedBorderColor: Color(0xFFD43C38),
+                                isPassword: true,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Veuillez entrer un mot de passe';
+                                  }
+                                  if (value.length < 6) {
+                                    return 'Le mot de passe doit contenir au moins 6 caractères';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: spacingMedium),
+                              CustomTextField(
+                                controller: _confirmPasswordController,
+                                label: 'Confirmer le mot de passe',
+                                hint: 'Confirmez votre mot de passe',
+                                prefixIcon: Icons.lock_outline,
+                                iconColor: Color(0xFFFF8A65),
+                                labelStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: AppSizes.bodyFontSize(context),
+                                  fontFamily: 'Inter',
+                                ),
+                                borderRadius: 12,
+                                focusedBorderColor: Color(0xFFD43C38),
+                                isPassword: true,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Veuillez confirmer votre mot de passe';
+                                  }
+                                  if (value != _passwordController.text) {
+                                    return 'Les mots de passe ne correspondent pas';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: spacingLarge),
+
+                              // Error message
+                              if (_errorMessage.isNotEmpty)
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: spacingMedium,
+                                  ),
+                                  child: Text(
+                                    _errorMessage,
+                                    style: TextStyle(
+                                      color: Color(0xFFD43C38),
+                                      fontSize: AppSizes.bodyFontSize(context),
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'Inter',
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+
+                              // Register button
+                              SizedBox(
+                                height: AppSizes.buttonHeight(context) * 1.1,
+                                child: CustomButton(
+                                  text: 'CRÉER LE COMPTE',
+                                  isLoading: _isLoading,
+                                  onPressed: _register,
+                                  textColor: Colors.white,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(0xFFD43C38),
+                                      Color(0xFFFF8A65),
+                                    ],
+                                  ),
+                                  borderRadius: 12,
+                                  textSize: AppSizes.subtitleFontSize(context),
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'Inter',
+                                  elevation: 0,
+                                  shadowColor: Color(
+                                    0xFFD43C38,
+                                  ).withOpacity(0.4),
+                                ),
+                              ),
+                              SizedBox(height: spacingLarge),
+
+                              // Login link
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Déjà un compte ?',
+                                    style: TextStyle(
+                                      fontSize:
+                                          AppSizes.bodyFontSize(context) * 0.9,
+                                      color: Colors.white.withOpacity(0.8),
+                                      fontFamily: 'Inter',
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => LoginScreen(),
+                                        ),
+                                      );
+                                    },
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: contentPadding * 0.5,
+                                        vertical: spacingSmall,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Se connecter',
+                                      style: TextStyle(
+                                        color: Color(0xFFFF8A65),
+                                        fontSize:
+                                            AppSizes.bodyFontSize(context) *
+                                            0.9,
+                                        fontWeight: FontWeight.w700,
+                                        fontFamily: 'Inter',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: spacingLarge),
+                            ],
                           ),
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Restez en sécurité grâce à la détection des incendies',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: const Color.fromARGB(255, 187, 183, 183),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 24),
-
-                  // Titre de la page
-                  Text(
-                    'Créer un compte',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: const Color.fromARGB(255, 187, 183, 183),
-                    ),
-                  ),
-                  SizedBox(height: 24),
-
-                  // Formulaire
-                  CustomTextField(
-                    controller: _usernameController,
-                    label: 'Nom d\'utilisateur',
-                    hint: 'Entrez votre nom d\'utilisateur',
-                    prefixIcon: Icons.person_outline,
-                    labelStyle: TextStyle(
-                      color: const Color.fromARGB(255, 187, 183, 183),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Veuillez entrer un nom d\'utilisateur';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _emailController,
-                    label: 'E-mail',
-                    hint: 'Entrer votre e-mail',
-                    prefixIcon: Icons.email_outlined,
-                    labelStyle: TextStyle(
-                      color: const Color.fromARGB(255, 187, 183, 183),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Veuillez entrer votre email';
-                      }
-                      if (!RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                      ).hasMatch(value)) {
-                        return 'Veuillez entrer un email valide';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _passwordController,
-                    label: 'Mot de passe',
-                    hint: 'Entrer votre mot de passe',
-                    labelStyle: TextStyle(
-                      color: const Color.fromARGB(255, 187, 183, 183),
-                    ),
-                    prefixIcon: Icons.lock_outline,
-                    isPassword: true,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Veuillez entrer un mot de passe';
-                      }
-                      if (value.length < 6) {
-                        return 'Le mot de passe doit contenir au moins 6 caractères';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _confirmPasswordController,
-                    label: 'Confirmer votre mot de passe',
-                    hint: 'Confirmer votre password',
-                    prefixIcon: Icons.lock_outline,
-                    labelStyle: TextStyle(
-                      color: const Color.fromARGB(255, 187, 183, 183),
-                    ),
-                    isPassword: true,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Veuillez confirmer votre mot de passe';
-                      }
-                      if (value != _passwordController.text) {
-                        return 'Les mots de passe ne correspondent pas';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 24),
-
-                  // Error message
-                  if (_errorMessage.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text(
-                        _errorMessage,
-                        style: TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center,
                       ),
                     ),
-
-                  // Register button
-                  CustomButton(
-                    text: 'CREER LE COMPTE',
-                    isLoading: _isLoading,
-                    onPressed: _register,
-
-                    backgroundColor: const Color.fromARGB(129, 223, 64, 2),
                   ),
-                  SizedBox(height: 24),
-
-                  // Login link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text("Vous avez déjà un compte ?"),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => LoginScreen(),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          'Se connecter',
-                          style: TextStyle(
-                            color: const Color.fromARGB(255, 255, 255, 255),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// Reusing CustomTextField from LoginScreen
+class CustomTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final TextStyle? labelStyle;
+  final IconData? prefixIcon;
+  final Color? iconColor;
+  final bool isPassword;
+  final String? Function(String?)? validator;
+  final double borderRadius;
+  final Color? focusedBorderColor;
+
+  const CustomTextField({
+    super.key,
+    required this.controller,
+    required this.label,
+    required this.hint,
+    this.labelStyle,
+    this.prefixIcon,
+    this.iconColor,
+    this.isPassword = false,
+    this.validator,
+    this.borderRadius = 8,
+    this.focusedBorderColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: labelStyle ?? Theme.of(context).textTheme.bodyMedium,
+        ),
+        SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          obscureText: isPassword,
+          style: TextStyle(
+            color: Colors.white,
+            fontFamily: 'Inter',
+            fontSize: AppSizes.bodyFontSize(context),
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(
+              color: Colors.white.withOpacity(0.5),
+              fontFamily: 'Inter',
+            ),
+            prefixIcon:
+                prefixIcon != null
+                    ? Icon(
+                      prefixIcon,
+                      color: iconColor ?? Colors.white.withOpacity(0.7),
+                      size: 20,
+                    )
+                    : null,
+            filled: true,
+            fillColor: Colors.white.withOpacity(0.1),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+              borderSide: BorderSide(
+                color: focusedBorderColor ?? Colors.white,
+                width: 1.5,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+              borderSide: BorderSide(color: Color(0xFFD43C38)),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+              borderSide: BorderSide(color: Color(0xFFD43C38), width: 1.5),
+            ),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          validator: validator,
+        ),
+      ],
+    );
+  }
+}
+
+// Reusing CustomButton from LoginScreen
+class CustomButton extends StatelessWidget {
+  final String text;
+  final bool isLoading;
+  final VoidCallback onPressed;
+  final Color textColor;
+  final Color? backgroundColor;
+  final LinearGradient? gradient;
+  final double borderRadius;
+  final double textSize;
+  final FontWeight? fontWeight;
+  final String? fontFamily;
+  final double elevation;
+  final Color? shadowColor;
+
+  const CustomButton({
+    super.key,
+    required this.text,
+    required this.isLoading,
+    required this.onPressed,
+    required this.textColor,
+    this.backgroundColor,
+    this.gradient,
+    this.borderRadius = 8,
+    this.textSize = 16,
+    this.fontWeight,
+    this.fontFamily,
+    this.elevation = 0,
+    this.shadowColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isLoading ? null : onPressed,
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          color: gradient == null ? backgroundColor : null,
+          borderRadius: BorderRadius.circular(borderRadius),
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor ?? Colors.black.withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (isLoading)
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF8A65)),
+                strokeWidth: 3,
+              ),
+            Center(
+              child: Text(
+                text,
+                style: TextStyle(
+                  color: isLoading ? Colors.transparent : textColor,
+                  fontSize: textSize,
+                  fontWeight: fontWeight ?? FontWeight.w600,
+                  fontFamily: fontFamily,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
