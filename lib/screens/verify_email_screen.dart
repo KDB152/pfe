@@ -28,7 +28,6 @@ class VerifyEmailScreen extends StatefulWidget {
 class EmailVerificationSuccessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    // Configure status bar and navigation bar to be transparent
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -122,30 +121,25 @@ class EmailVerificationSuccessScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  ElevatedButton(
+                  CustomButton(
+                    text: 'Se connecter',
+                    isLoading: false,
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => LoginScreen()),
                       );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Color(0xFFD43C38),
-                      minimumSize: const Size(double.infinity, 54),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    textColor: Colors.white,
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
                     ),
-                    child: const Text(
-                      'Se connecter',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
+                    borderRadius: 12,
+                    textSize: 16,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Inter',
+                    elevation: 0,
+                    shadowColor: Color(0xFFD43C38).withOpacity(0.4),
                   ),
                 ],
               ),
@@ -176,7 +170,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
   void initState() {
     super.initState();
 
-    // Configure status bar and navigation bar to be transparent
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -186,7 +179,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
       ),
     );
 
-    // Initialize animation controller
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -196,22 +188,18 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
-    // Initialize _resendTimer as a dummy timer to avoid null issues in dispose
     _resendTimer = Timer(Duration.zero, () {});
 
-    // Check if we're in an email change or account deletion process
     if (widget.action == 'email_change' && widget.newEmail != null) {
       _processEmailChange();
     } else if (widget.action == 'account_deletion') {
       _processAccountDeletion();
     } else {
-      // Check initial state for standard email verification
       _isEmailVerified =
           FirebaseAuth.instance.currentUser?.emailVerified ?? false;
 
       if (!_isEmailVerified) {
-        // Periodically check if the email is verified
-        _timer = Timer.periodic(Duration(seconds: 3), (_) async {
+        _timer = Timer.periodic(Duration(seconds: 3), (timer) async {
           try {
             await FirebaseAuth.instance.currentUser?.reload();
             final bool newEmailVerified =
@@ -227,10 +215,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
                 });
 
                 try {
-                  // Create the user profile now that the email is verified
                   await _authService.createUserProfile();
-
-                  // Navigate to success screen
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
@@ -257,7 +242,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
     }
   }
 
-  // Method to clear messages after a delay
   void _clearMessagesAfterDelay() {
     Timer(Duration(seconds: 5), () {
       if (mounted) {
@@ -269,7 +253,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
     });
   }
 
-  // Method to process email change
   Future<void> _processEmailChange() async {
     setState(() {
       _isProcessing = true;
@@ -277,7 +260,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
     });
 
     try {
-      // Send verification email to the new address
       final functions = FirebaseFunctions.instance;
       final callable = functions.httpsCallable('sendVerificationToNewEmail');
 
@@ -306,7 +288,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
     }
   }
 
-  // Method to process account deletion
   Future<void> _processAccountDeletion() async {
     setState(() {
       _isProcessing = true;
@@ -314,7 +295,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
     });
 
     try {
-      // Verify the OOB code and delete the account via Cloud Function
       final functions = FirebaseFunctions.instance;
       final callable = functions.httpsCallable('processAccountDeletion');
 
@@ -329,7 +309,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
           _statusMessage = "Votre compte a été supprimé avec succès.";
         });
 
-        // Redirect to login page after a short delay
         Future.delayed(Duration(seconds: 2), () {
           if (mounted) {
             Navigator.pushReplacement(
@@ -375,14 +354,14 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
 
       setState(() {
         _canResendEmail = false;
-        _resendTimeout = 60;
+        _resendTimeout = 60; // 60-second cooldown
         _isProcessing = false;
         _statusMessage =
             "Un email de vérification a été envoyé à votre adresse email.";
       });
       _clearMessagesAfterDelay();
 
-      _resendTimer.cancel(); // Cancel any existing timer
+      _resendTimer.cancel();
       _resendTimer = Timer.periodic(Duration(seconds: 1), (timer) {
         setState(() {
           if (_resendTimeout > 0) {
@@ -393,6 +372,20 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
           }
         });
       });
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      if (e.code == 'too-many-requests') {
+        errorMessage = "Veuillez réessayer dans une minute !";
+      } else {
+        errorMessage =
+            "Erreur lors de l'envoi de l'email de vérification : ${e.message}";
+      }
+      setState(() {
+        _isProcessing = false;
+        _statusMessage = "";
+        _errorMessage = errorMessage;
+      });
+      _clearMessagesAfterDelay();
     } catch (e) {
       setState(() {
         _isProcessing = false;
@@ -474,7 +467,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
       ),
       body: Container(
         width: double.infinity,
-        height: double.infinity, // Ensure the container fills the entire screen
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
@@ -803,37 +796,71 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
                       if (!_isEmailVerified &&
                           !_isCreatingProfile &&
                           widget.action == null)
-                        ElevatedButton.icon(
-                          icon: const Icon(
-                            Icons.refresh,
-                            color: Color(0xFFD43C38),
-                          ),
-                          label: Text(
-                            _canResendEmail
-                                ? 'Renvoyer l\'email de vérification'
-                                : 'Renvoyer dans $_resendTimeout secondes',
-                            style: const TextStyle(
-                              color: Color(0xFFD43C38),
+                        Column(
+                          children: [
+                            if (_resendTimeout > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 16.0),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: 5,
+                                      sigmaY: 5,
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.2),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.2,
+                                            ),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        'Vous pourrez renvoyer dans $_resendTimeout secondes',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontFamily: 'Inter',
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            CustomButton(
+                              text:
+                                  _canResendEmail
+                                      ? 'Renvoyer l\'email de vérification'
+                                      : 'Renvoyer dans $_resendTimeout secondes',
+                              isLoading: _isProcessing,
+                              onPressed:
+                                  _canResendEmail
+                                      ? _resendVerificationEmail
+                                      : null,
+                              textColor: Colors.white,
+                              gradient: LinearGradient(
+                                colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
+                              ),
+                              borderRadius: 12,
+                              textSize: 16,
+                              fontWeight: FontWeight.w600,
                               fontFamily: 'Inter',
+                              elevation: 0,
+                              shadowColor: Color(0xFFD43C38).withOpacity(0.4),
                             ),
-                          ),
-                          onPressed:
-                              _canResendEmail ? _resendVerificationEmail : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Color(0xFFD43C38),
-                            disabledBackgroundColor: Colors.white.withOpacity(
-                              0.5,
-                            ),
-                            disabledForegroundColor: Colors.white.withOpacity(
-                              0.7,
-                            ),
-                            minimumSize: const Size(double.infinity, 50),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
+                          ],
                         ),
 
                       const SizedBox(height: 16),
@@ -879,6 +906,85 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class CustomButton extends StatelessWidget {
+  final String text;
+  final bool isLoading;
+  final VoidCallback? onPressed;
+  final Color textColor;
+  final Color? backgroundColor;
+  final LinearGradient? gradient;
+  final double borderRadius;
+  final double textSize;
+  final FontWeight? fontWeight;
+  final String? fontFamily;
+  final double elevation;
+  final Color? shadowColor;
+
+  const CustomButton({
+    Key? key,
+    required this.text,
+    required this.isLoading,
+    this.onPressed,
+    required this.textColor,
+    this.backgroundColor,
+    this.gradient,
+    this.borderRadius = 8,
+    this.textSize = 16,
+    this.fontWeight,
+    this.fontFamily,
+    this.elevation = 0,
+    this.shadowColor,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isLoading || onPressed == null ? null : onPressed,
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          color: gradient == null ? backgroundColor : null,
+          borderRadius: BorderRadius.circular(borderRadius),
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor ?? Colors.black.withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.symmetric(vertical: 14),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (isLoading)
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Color(0xFFFF8A65)),
+                strokeWidth: 3,
+              ),
+            Center(
+              child: Text(
+                text,
+                style: TextStyle(
+                  color:
+                      isLoading || onPressed == null
+                          ? Colors.white.withOpacity(0.5)
+                          : textColor,
+                  fontSize: textSize,
+                  fontWeight: fontWeight ?? FontWeight.w600,
+                  fontFamily: fontFamily,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
