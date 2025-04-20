@@ -236,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen>
               physics: const NeverScrollableScrollPhysics(),
               children: [
                 _buildSensorDataCard(
-                  title: 'Probabilité Incendie',
+                  title: 'Probabilité d\'Incendie',
                   value: '${(_sensorData!.smoke).toStringAsFixed(1)} %',
                   icon: Icons.local_fire_department_outlined,
                   color: Colors.grey.shade400,
@@ -278,6 +278,9 @@ class _HomeScreenState extends State<HomeScreen>
     required Color color,
     required Animation<double> animation,
   }) {
+    // Vérifier si c'est la carte "Probabilité Incendie" pour ajuster la taille
+    final bool isProbabiliteIncendie = title == 'Probabilité d\'Incendie';
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: BackdropFilter(
@@ -304,9 +307,17 @@ class _HomeScreenState extends State<HomeScreen>
                 const SizedBox(height: 8),
                 Text(
                   title,
+                  textAlign:
+                      isProbabiliteIncendie
+                          ? TextAlign.center
+                          : TextAlign.start,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: AppSizes.bodyFontSize(context),
+                    fontSize:
+                        isProbabiliteIncendie
+                            ? AppSizes.bodyFontSize(context) *
+                                0.91 // Plus petit pour "Probabilité Incendie"
+                            : AppSizes.bodyFontSize(context),
                     color: Colors.white,
                     fontFamily: 'Inter',
                   ),
