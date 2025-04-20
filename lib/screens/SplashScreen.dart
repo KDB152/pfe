@@ -76,17 +76,17 @@ class _SplashScreenState extends State<SplashScreen>
       _particles.add(
         Particle(
           position: Offset(
-            -10 + random.nextDouble() * 20, // Reduced range to [-10, 10]
-            -20 + random.nextDouble() * 40, // Reduced range to [-20, 20]
+            -10 + random.nextDouble() * 20,
+            -20 + random.nextDouble() * 40,
           ),
           velocity: Offset(
-            -0.5 + random.nextDouble() * 1, // Reduced range to [-0.5, 0.5]
-            -1 - random.nextDouble() * 1, // Reduced range to [-2, -1]
+            -0.5 + random.nextDouble() * 1,
+            -1 - random.nextDouble() * 1,
           ),
           color: Color.fromRGBO(
             255,
-            147 + random.nextInt(108),
-            0,
+            87 + random.nextInt(80), // Adjusted to match 0xFFFF8A65
+            34 + random.nextInt(30),
             0.7 + random.nextDouble() * 0.3,
           ),
           size: 6 + random.nextDouble() * 12,
@@ -115,8 +115,8 @@ class _SplashScreenState extends State<SplashScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF8B0000), Color(0xFFFF4500), Color(0xFFFFD700)],
-            stops: [0.0, 0.5, 1.0],
+            colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
+            stops: [0.0, 1.0],
           ),
         ),
         child: Stack(
@@ -154,7 +154,7 @@ class _SplashScreenState extends State<SplashScreen>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.red.withOpacity(0.2),
+                                  color: Color(0xFFD43C38).withOpacity(0.2),
                                   blurRadius: 20,
                                   spreadRadius: 5,
                                 ),
@@ -186,8 +186,8 @@ class _SplashScreenState extends State<SplashScreen>
                                   shaderCallback:
                                       (bounds) => LinearGradient(
                                         colors: [
-                                          Color(0xFFFF4500),
-                                          Color(0xFFFFD700),
+                                          Color(0xFFD43C38),
+                                          Color(0xFFFF8A65),
                                         ],
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
@@ -232,14 +232,14 @@ class _SplashScreenState extends State<SplashScreen>
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [
-                                      Color(0xFFFF4500),
-                                      Color(0xFFFFD700),
+                                      Color(0xFFD43C38),
+                                      Color(0xFFFF8A65),
                                     ],
                                   ),
                                   borderRadius: BorderRadius.circular(4),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.red.withOpacity(0.3),
+                                      color: Color(0xFFD43C38).withOpacity(0.3),
                                       blurRadius: 6,
                                       spreadRadius: 1,
                                     ),
@@ -337,7 +337,6 @@ class FlamePainter extends CustomPainter {
 
       final wobble = math.sin(animationValue * 2 * math.pi) * 3;
 
-      // Clamp the position to stay within canvas bounds, accounting for the radius
       final radius = particle.size * (1 - animationValue * 0.4);
       final clampedX = (animatedPosition.dx + wobble).clamp(
         radius,
@@ -358,7 +357,7 @@ class FlamePainter extends CustomPainter {
 
     final glowPaint =
         Paint()
-          ..color = Colors.red.withOpacity(0.2)
+          ..color = Color(0xFFD43C38).withOpacity(0.2)
           ..style = PaintingStyle.fill
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
 

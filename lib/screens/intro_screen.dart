@@ -24,7 +24,7 @@ class _IntroScreenState extends State<IntroScreen>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3), // Rapide pour plus d'énergie
+      duration: const Duration(seconds: 3),
     )..repeat(reverse: true);
 
     _gradientAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -56,11 +56,8 @@ class _IntroScreenState extends State<IntroScreen>
           ),
           color: Color.fromRGBO(
             255,
-            87 +
-                random.nextInt(
-                  120,
-                ), // Variations autour de la palette d'origine
-            34 + random.nextInt(50),
+            87 + random.nextInt(80), // Adjusted to stay closer to 0xFFFF8A65
+            34 + random.nextInt(30),
             0.5 + random.nextDouble() * 0.5,
           ),
           size: 3 + random.nextDouble() * 12,
@@ -94,7 +91,7 @@ class _IntroScreenState extends State<IntroScreen>
         gradient: LinearGradient(
           colors:
               isActive
-                  ? [const Color(0xFFFF5722), const Color(0xFFFFA726)]
+                  ? [const Color(0xFFD43C38), const Color(0xFFFF8A65)]
                   : [
                     Colors.white.withOpacity(0.3),
                     Colors.white.withOpacity(0.3),
@@ -105,7 +102,7 @@ class _IntroScreenState extends State<IntroScreen>
             isActive
                 ? [
                   BoxShadow(
-                    color: const Color(0xFFFF5722).withOpacity(0.5),
+                    color: const Color(0xFFD43C38).withOpacity(0.5),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
@@ -134,7 +131,6 @@ class _IntroScreenState extends State<IntroScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // Fond animé
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _animationController,
@@ -145,11 +141,10 @@ class _IntroScreenState extends State<IntroScreen>
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        const Color(0xFFB71C1C), // Palette d'origine
-                        const Color(0xFFFF5722),
-                        const Color(0xFFFFA726),
+                        const Color(0xFFD43C38),
+                        const Color(0xFFFF8A65),
                       ],
-                      stops: const [0.1, 0.5, 0.9],
+                      stops: const [0.1, 0.9],
                       transform: GradientRotation(
                         _gradientAnimation.value * 0.6,
                       ),
@@ -166,8 +161,6 @@ class _IntroScreenState extends State<IntroScreen>
               },
             ),
           ),
-
-          // Contenu principal
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -188,12 +181,12 @@ class _IntroScreenState extends State<IntroScreen>
                         ),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFFFF5722), Color(0xFFFFA726)],
+                            colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
                           ),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFFF5722).withOpacity(0.4),
+                              color: const Color(0xFFD43C38).withOpacity(0.4),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -212,7 +205,6 @@ class _IntroScreenState extends State<IntroScreen>
                     ),
                   ),
                 ),
-
                 Expanded(
                   child: PageView(
                     physics: const BouncingScrollPhysics(),
@@ -229,7 +221,6 @@ class _IntroScreenState extends State<IntroScreen>
                     ],
                   ),
                 ),
-
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: Row(
@@ -237,7 +228,6 @@ class _IntroScreenState extends State<IntroScreen>
                     children: _buildPageIndicator(),
                   ),
                 ),
-
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24.0,
@@ -259,12 +249,12 @@ class _IntroScreenState extends State<IntroScreen>
                       padding: const EdgeInsets.symmetric(vertical: 18.0),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFFFF5722), Color(0xFFFFA726)],
+                          colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
                         ),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFFF5722).withOpacity(0.5),
+                            color: const Color(0xFFD43C38).withOpacity(0.5),
                             blurRadius: 15,
                             offset: const Offset(0, 5),
                           ),
@@ -316,14 +306,14 @@ class _IntroScreenState extends State<IntroScreen>
                     gradient: RadialGradient(
                       colors: [
                         Colors.white.withOpacity(0.4),
-                        const Color(0xFFFF5722).withOpacity(0.3),
+                        const Color(0xFFD43C38).withOpacity(0.3),
                         Colors.transparent,
                       ],
                       stops: const [0.2, 0.6, 1.0],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFF5722).withOpacity(0.4),
+                        color: const Color(0xFFD43C38).withOpacity(0.4),
                         blurRadius: 15,
                         offset: const Offset(0, 5),
                       ),
@@ -340,9 +330,7 @@ class _IntroScreenState extends State<IntroScreen>
               );
             },
           ),
-
           const SizedBox(height: 32.0),
-
           AnimatedOpacity(
             opacity: _currentPage == 0 ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 500),
@@ -369,9 +357,7 @@ class _IntroScreenState extends State<IntroScreen>
               ),
             ),
           ),
-
           const SizedBox(height: 16.0),
-
           AnimatedOpacity(
             opacity: _currentPage == 0 ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 500),
@@ -393,7 +379,7 @@ class _IntroScreenState extends State<IntroScreen>
                   border: Border.all(color: Colors.white.withOpacity(0.3)),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF5722).withOpacity(0.3),
+                      color: const Color(0xFFD43C38).withOpacity(0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -440,7 +426,7 @@ class _IntroScreenState extends State<IntroScreen>
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              const Color(0xFFFF5722).withOpacity(0.3),
+                              const Color(0xFFD43C38).withOpacity(0.3),
                               Colors.transparent,
                             ],
                           ),
@@ -453,7 +439,7 @@ class _IntroScreenState extends State<IntroScreen>
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
-                          colors: [Color(0xFFFF5722), Color(0xFFFFA726)],
+                          colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
                         ),
                       ),
                       child: Transform.scale(
@@ -474,9 +460,7 @@ class _IntroScreenState extends State<IntroScreen>
               },
             ),
           ),
-
           const SizedBox(height: 24.0),
-
           AnimatedOpacity(
             opacity: _currentPage == 1 ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 500),
@@ -502,9 +486,7 @@ class _IntroScreenState extends State<IntroScreen>
               ),
             ),
           ),
-
           const SizedBox(height: 16.0),
-
           Column(
             children: [
               AnimatedOpacity(
@@ -576,14 +558,14 @@ class _IntroScreenState extends State<IntroScreen>
                       gradient: LinearGradient(
                         colors: [
                           Colors.white.withOpacity(0.2),
-                          const Color(0xFFFF5722).withOpacity(0.3),
+                          const Color(0xFFD43C38).withOpacity(0.3),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.white.withOpacity(0.3)),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFF5722).withOpacity(0.4),
+                          color: const Color(0xFFD43C38).withOpacity(0.4),
                           blurRadius: 15,
                           offset: const Offset(0, 5),
                         ),
@@ -600,9 +582,7 @@ class _IntroScreenState extends State<IntroScreen>
                 );
               },
             ),
-
             const SizedBox(height: 32.0),
-
             AnimatedOpacity(
               opacity: _currentPage == 2 ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 500),
@@ -628,9 +608,7 @@ class _IntroScreenState extends State<IntroScreen>
                 ),
               ),
             ),
-
             const SizedBox(height: 24.0),
-
             AnimatedOpacity(
               opacity: _currentPage == 2 ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 500),
@@ -708,14 +686,14 @@ class _IntroScreenState extends State<IntroScreen>
         gradient: LinearGradient(
           colors: [
             Colors.white.withOpacity(0.15),
-            const Color(0xFFFF5722).withOpacity(0.1),
+            const Color(0xFFD43C38).withOpacity(0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.3)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF5722).withOpacity(0.3),
+            color: const Color(0xFFD43C38).withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -735,7 +713,7 @@ class _IntroScreenState extends State<IntroScreen>
                   padding: const EdgeInsets.all(12),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFFFF5722), Color(0xFFFFA726)],
+                      colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
                     ),
                     shape: BoxShape.circle,
                   ),
@@ -787,14 +765,14 @@ class _IntroScreenState extends State<IntroScreen>
         gradient: LinearGradient(
           colors: [
             Colors.white.withOpacity(0.15),
-            const Color(0xFFFF5722).withOpacity(0.1),
+            const Color(0xFFD43C38).withOpacity(0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.3)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF5722).withOpacity(0.3),
+            color: const Color(0xFFD43C38).withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -814,7 +792,7 @@ class _IntroScreenState extends State<IntroScreen>
                   padding: const EdgeInsets.all(12),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFFFF5722), Color(0xFFFFA726)],
+                      colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
                     ),
                     shape: BoxShape.circle,
                   ),
