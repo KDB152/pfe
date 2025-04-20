@@ -3,6 +3,7 @@ class SensorData {
   final double humidity;
   final double smoke;
   final double co2;
+
   final bool isAlarmActive;
   final DateTime timestamp;
 

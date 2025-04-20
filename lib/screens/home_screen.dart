@@ -236,6 +236,13 @@ class _HomeScreenState extends State<HomeScreen>
               physics: const NeverScrollableScrollPhysics(),
               children: [
                 _buildSensorDataCard(
+                  title: 'Probabilité Incendie',
+                  value: '${(_sensorData!.smoke).toStringAsFixed(1)} %',
+                  icon: Icons.local_fire_department_outlined,
+                  color: Colors.grey.shade400,
+                  animation: _animationController,
+                ),
+                _buildSensorDataCard(
                   title: 'Température',
                   value: '${_sensorData!.temperature} °C',
                   icon: Icons.thermostat,
@@ -250,14 +257,7 @@ class _HomeScreenState extends State<HomeScreen>
                   animation: _animationController,
                 ),
                 _buildSensorDataCard(
-                  title: 'Fumée',
-                  value: '${(_sensorData!.smoke).toStringAsFixed(1)} %',
-                  icon: Icons.smoke_free,
-                  color: Colors.grey.shade400,
-                  animation: _animationController,
-                ),
-                _buildSensorDataCard(
-                  title: 'CO2',
+                  title: 'Gaz',
                   value: '${(_sensorData!.co2).toStringAsFixed(1)} ppm',
                   icon: Icons.cloud,
                   color: Colors.greenAccent,
@@ -386,7 +386,12 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   int _selectedTabIndex = 0;
-  final List<String> _tabTitles = ['Température', 'Humidité', 'Fumée', 'CO2'];
+  final List<String> _tabTitles = [
+    'Température',
+    'Humidité',
+    'Gaz',
+    'Probabilité d\incendie',
+  ];
 
   Widget _buildTabSelector() {
     return SizedBox(
@@ -466,7 +471,7 @@ class _HomeScreenState extends State<HomeScreen>
         break;
       case 2:
         data = _smokeData;
-        label = 'Fumée';
+        label = 'Probabilité d\incendie';
         color = Colors.grey.shade400;
         unit = '%';
         break;
