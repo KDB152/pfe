@@ -12,10 +12,15 @@ import 'screens/users_comments_screen.dart';
 import 'screens/intro_screen.dart';
 import 'screens/SplashScreen.dart';
 import 'screens/view_screen.dart';
+import 'services/sensor_service.dart'; // Ajouter cette importation
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  // Initialiser SensorService
+  final sensorService = SensorService();
+  await sensorService.initialize();
 
   // Fixer l'orientation de l'écran en mode portrait uniquement
   SystemChrome.setPreferredOrientations([
@@ -26,6 +31,7 @@ Future<void> main() async {
   runApp(const FireDetectorApp());
 }
 
+// Le reste du code reste inchangé
 class FireDetectorApp extends StatelessWidget {
   const FireDetectorApp({super.key});
 
@@ -124,7 +130,7 @@ class FireDetectorApp extends StatelessWidget {
             color: Colors.grey[700],
           ),
         ),
-        themeMode: ThemeMode.system, // Utiliser le thème du système
+        themeMode: ThemeMode.system,
         initialRoute: '/',
         routes: {
           '/': (context) => const SplashScreen(),
@@ -141,16 +147,14 @@ class FireDetectorApp extends StatelessWidget {
           '/live-view': (context) => ViewScreen(),
           '/user-management': (context) => const UserManagementScreen(),
           '/users-comments': (context) => const UsersCommentsScreen(),
-          '/alert-details':
-              (context) =>
-                  const AlertDetailsScreen(), // Nouvelle route pour les détails d'alerte
+          '/alert-details': (context) => const AlertDetailsScreen(),
         },
       ),
     );
   }
 }
 
-// Créer une nouvelle page pour l'affichage des détails d'une alerte
+// Le reste du code pour AlertDetailsScreen reste inchangé
 class AlertDetailsScreen extends StatelessWidget {
   const AlertDetailsScreen({super.key});
 
@@ -225,7 +229,6 @@ class AlertDetailsScreen extends StatelessWidget {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                // Marquer comme vue/résolue (à implémenter)
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Alerte marquée comme résolue')),
                 );
@@ -246,7 +249,6 @@ class AlertDetailsScreen extends StatelessWidget {
     IconData iconData;
     Color iconColor;
 
-    // Déterminer l'icône selon le type d'alerte
     switch (alertType.toString()) {
       case 'AlertType.smoke':
         iconData = Icons.smoke_free;

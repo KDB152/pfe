@@ -2,7 +2,7 @@ class SensorData {
   final double temperature;
   final double humidity;
   final double smoke;
-  final double co2; // Renommé de gas à co2
+  final double co2;
   final bool isAlarmActive;
   final DateTime timestamp;
 
@@ -10,7 +10,7 @@ class SensorData {
     required this.temperature,
     required this.humidity,
     required this.smoke,
-    required this.co2, // Renommé de gas à co2
+    required this.co2,
     required this.isAlarmActive,
     required this.timestamp,
   });
@@ -20,7 +20,7 @@ class SensorData {
       temperature: json['temperature']?.toDouble() ?? 0.0,
       humidity: json['humidity']?.toDouble() ?? 0.0,
       smoke: json['smoke']?.toDouble() ?? 0.0,
-      co2: json['co2']?.toDouble() ?? 0.0, // Renommé de gas à co2
+      co2: json['co2']?.toDouble() ?? 0.0,
       isAlarmActive: json['isAlarmActive'] ?? false,
       timestamp: DateTime.parse(
         json['timestamp'] ?? DateTime.now().toIso8601String(),
@@ -33,7 +33,7 @@ class SensorData {
       'temperature': temperature,
       'humidity': humidity,
       'smoke': smoke,
-      'co2': co2, // Renommé de gas à co2
+      'co2': co2,
       'isAlarmActive': isAlarmActive,
       'DateTime': timestamp.toIso8601String(),
     };
@@ -47,8 +47,8 @@ class Alert {
   final DateTime timestamp;
   final AlertType type;
   final bool isRead;
-  final String? commentId; // ID du commentaire associé si applicable
-  final String? adminResponse; // Réponse de l'administrateur
+  final String? commentId;
+  final String? adminResponse;
 
   Alert({
     required this.id,

@@ -1,24 +1,124 @@
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:flutter/material.dart';
 import '../models/sensor_data_model.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
-
   factory NotificationService() => _instance;
-
   NotificationService._internal();
 
   DatabaseReference? _alertsRef;
   bool _isListening = false;
+  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
-  void initialize() {
+  // Liste pour stocker les notifications à afficher dans notifications_screen
+  final List<Alert> _notifications = [];
+  List<Alert> get notifications => _notifications;
+
+  Future<void> initialize() async {
     if (!_isListening) {
+      // Initialiser Firebase Messaging
+      await _firebaseMessaging.requestPermission();
+      await _firebaseMessaging.getToken();
+
+      // Initialiser les notifications locales avec un style moderne
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+      const InitializationSettings initializationSettings =
+          InitializationSettings(android: initializationSettingsAndroid);
+      await _flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+      // Configurer les notifications en arrière-plan
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        _showNotification(message);
+      });
+
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        // Gérer l'ouverture de l'application via la notification
+      });
+
+      // Configurer l'écoute des alertes Firebase
       _alertsRef = FirebaseDatabase.instance.ref('alerts');
       _setupListener();
       _isListening = true;
     }
+  }
+
+  // Méthode pour afficher une notification locale avec un design moderne
+  Future<void> _showNotification(RemoteMessage message) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+          'high_importance_channel',
+          'High Importance Notifications',
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+          styleInformation: BigTextStyleInformation(''),
+          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          color: Colors.deepOrange,
+        );
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+    await _flutterLocalNotificationsPlugin.show(
+      0,
+      message.notification?.title ?? 'Alerte',
+      message.notification?.body ?? 'Nouvelle alerte détectée',
+      platformChannelSpecifics,
+    );
+  }
+
+  // Méthode pour envoyer une notification manuellement avec un design moderne
+  Future<void> sendThresholdNotification(String title, String body) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+          'threshold_channel',
+          'Threshold Notifications',
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+          styleInformation: BigTextStyleInformation(''),
+          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          color: Colors.deepOrange,
+          enableLights: true,
+          ledColor: Colors.deepOrange,
+          ledOnMs: 1000,
+          ledOffMs: 500,
+        );
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    // Créer une alerte à partir de la notification
+    final alert = Alert(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: title,
+      description: body,
+      timestamp: DateTime.now(),
+      type:
+          title.contains('Température')
+              ? AlertType.temperature
+              : AlertType.humidity,
+    );
+
+    // Ajouter la notification à la liste
+    _notifications.insert(
+      0,
+      alert,
+    ); // Insérer au début pour afficher les plus récentes en haut
+
+    // Afficher la notification
+    await _flutterLocalNotificationsPlugin.show(
+      1,
+      title,
+      body,
+      platformChannelSpecifics,
+    );
   }
 
   void _setupListener() {
@@ -26,7 +126,6 @@ class NotificationService {
       if (event.snapshot.value != null) {
         final data = Map<String, dynamic>.from(event.snapshot.value as Map);
 
-        // Vérifier si l'alerte est active
         if (data['isActive'] == true) {
           final alert = Alert(
             id: event.snapshot.key ?? '',
@@ -38,20 +137,21 @@ class NotificationService {
             type: _getAlertTypeFromString(data['type'] ?? 'info'),
           );
 
-          // Afficher la notification
+          // Afficher la notification via overlay
           showOverlayNotification((context) {
             return _buildNotificationCard(context, alert);
           }, duration: const Duration(seconds: 3));
+
+          // Envoyer une notification push et l'ajouter à la liste
+          sendThresholdNotification(alert.title, alert.description);
         }
       }
     });
 
-    // Écouter aussi les changements pour les alertes existantes qui deviennent actives
     _alertsRef?.onChildChanged.listen((event) {
       if (event.snapshot.value != null) {
         final data = Map<String, dynamic>.from(event.snapshot.value as Map);
 
-        // Vérifier si l'alerte vient de devenir active
         if (data['isActive'] == true && data['notified'] != true) {
           final alert = Alert(
             id: event.snapshot.key ?? '',
@@ -63,12 +163,12 @@ class NotificationService {
             type: _getAlertTypeFromString(data['type'] ?? 'info'),
           );
 
-          // Afficher la notification
           showOverlayNotification((context) {
             return _buildNotificationCard(context, alert);
           }, duration: const Duration(seconds: 3));
 
-          // Mettre à jour que l'alerte a été notifiée
+          sendThresholdNotification(alert.title, alert.description);
+
           _alertsRef?.child(event.snapshot.key!).update({'notified': true});
         }
       }
