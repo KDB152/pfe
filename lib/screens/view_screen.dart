@@ -1,13 +1,17 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 
 class ViewScreen extends StatefulWidget {
+  const ViewScreen({Key? key}) : super(key: key);
+
   @override
   _ViewScreenState createState() => _ViewScreenState();
 }
 
-class _ViewScreenState extends State<ViewScreen> {
+class _ViewScreenState extends State<ViewScreen>
+    with SingleTickerProviderStateMixin {
   String _cameraUrl = '';
   bool _isConnected = false;
   final TextEditingController _ipController = TextEditingController();
@@ -16,14 +20,28 @@ class _ViewScreenState extends State<ViewScreen> {
   bool _isStreaming = false;
   bool _isLoading = false;
   int _selectedQuality = 20; // Qualité moyenne par défaut
-
-  // Pour forcer l'actualisation de l'image
   int _refreshCounter = 0;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..forward();
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
 
   @override
   void dispose() {
     _stopStream();
     _ipController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -41,11 +59,10 @@ class _ViewScreenState extends State<ViewScreen> {
       return;
     }
 
-    // Test de connexion avant de se connecter complètement
     http
         .get(Uri.parse('http://$ipAddress'))
         .timeout(
-          const Duration(seconds: 5), // Augmentation du délai d'attente
+          const Duration(seconds: 5),
           onTimeout: () {
             _showSnackBar(
               "Délai d'attente dépassé. Vérifiez l'adresse IP de votre ESP32-CAM",
@@ -91,19 +108,13 @@ class _ViewScreenState extends State<ViewScreen> {
     setState(() {
       _isStreaming = true;
       _refreshCounter++;
-
-      // Correction: Utilisation de l'endpoint correct pour l'ESP32-CAM
-      // L'ESP32-CAM utilise /capture pour une seule image ou /stream pour le MJPEG
       _imageUrl = '$_cameraUrl/stream';
     });
 
-    // Démarrer un timer pour rafraîchir l'image si le streaming MJPEG échoue
     _streamTimer = Timer.periodic(Duration(seconds: 0), (timer) {
       if (_isStreaming && mounted) {
         setState(() {
           _refreshCounter++;
-          // Pour les ESP32-CAM qui ne prennent pas en charge le streaming MJPEG,
-          // nous pouvons utiliser /capture et rafraîchir périodiquement
           _imageUrl = '$_cameraUrl/capture?_t=$_refreshCounter';
         });
       }
@@ -133,12 +144,10 @@ class _ViewScreenState extends State<ViewScreen> {
     });
 
     try {
-      // Correction de l'URL de contrôle LED pour l'ESP32-CAM standard
       final response = await http
           .get(Uri.parse('$_cameraUrl/control?var=flash&val=1'))
           .timeout(const Duration(seconds: 3));
 
-      // Pour éteindre, on pourrait utiliser val=0, mais ici on veut juste basculer
       if (response.statusCode == 200) {
         _showSnackBar("LED basculée avec succès");
       } else {
@@ -160,14 +169,12 @@ class _ViewScreenState extends State<ViewScreen> {
     });
 
     try {
-      // Correction de l'URL pour ajuster la qualité sur l'ESP32-CAM standard
       final response = await http
           .get(Uri.parse('$_cameraUrl/control?var=quality&val=$quality'))
           .timeout(const Duration(seconds: 3));
 
       if (response.statusCode == 200) {
         _showSnackBar("Qualité modifiée");
-        // Redémarrer le flux pour appliquer les changements
         if (_isStreaming) {
           _stopStream();
           _startStream();
@@ -189,11 +196,15 @@ class _ViewScreenState extends State<ViewScreen> {
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: const TextStyle(fontFamily: 'Inter', color: Colors.white),
+        ),
+        backgroundColor: Colors.black.withOpacity(0.8),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: EdgeInsets.all(10),
-        duration: Duration(seconds: 2),
+        margin: const EdgeInsets.all(10),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -202,19 +213,31 @@ class _ViewScreenState extends State<ViewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Visualisation du local'),
-        backgroundColor: Colors.deepOrange,
-        centerTitle: true,
+        title: const Text(
+          'Visualisation du local',
+          style: TextStyle(color: Colors.white, fontFamily: 'Inter'),
+        ),
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
       ),
       body: Stack(
         children: [
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.deepOrange.shade50, Colors.white],
+                colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
           ),
@@ -224,314 +247,483 @@ class _ViewScreenState extends State<ViewScreen> {
               child: Column(
                 children: [
                   if (!_isConnected) ...[
-                    Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Connectez-vous à votre caméra',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                          child: Container(
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
                               ),
-                            ),
-                            SizedBox(height: 16),
-                            TextField(
-                              controller: _ipController,
-                              decoration: InputDecoration(
-                                labelText: 'Adresse IP de l\'ESP32-CAM',
-                                hintText: 'Ex: 192.168.1.1',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
                                 ),
-                                prefixIcon: Icon(Icons.camera_alt),
-                                filled: true,
-                                fillColor: Colors.white,
-                              ),
+                              ],
                             ),
-                            SizedBox(height: 20),
-                            ElevatedButton(
-                              onPressed: _isLoading ? null : _connectToCamera,
-                              child:
-                                  _isLoading
-                                      ? SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
-                                      : Text('Connecter'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.deepOrange,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 30,
-                                  vertical: 12,
+                            child: Column(
+                              children: [
+                                const Text(
+                                  'Connectez-vous à votre caméra',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontFamily: 'Inter',
+                                  ),
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
+                                const SizedBox(height: 16),
+                                TextField(
+                                  controller: _ipController,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontFamily: 'Inter',
+                                  ),
+                                  decoration: InputDecoration(
+                                    labelText: 'Adresse IP de l\'ESP32-CAM',
+                                    labelStyle: TextStyle(
+                                      color: Colors.white.withOpacity(0.8),
+                                      fontFamily: 'Inter',
+                                    ),
+                                    hintText: 'Ex: 192.168.1.1',
+                                    hintStyle: TextStyle(
+                                      color: Colors.white.withOpacity(0.6),
+                                      fontFamily: 'Inter',
+                                    ),
+                                    prefixIcon: const Icon(
+                                      Icons.camera_alt,
+                                      color: Colors.white,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(
+                                        color: Colors.white.withOpacity(0.3),
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(
+                                        color: Colors.white.withOpacity(0.3),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.white.withOpacity(0.1),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 20),
+                                ElevatedButton(
+                                  onPressed:
+                                      _isLoading ? null : _connectToCamera,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: const Color(0xFFD43C38),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 30,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child:
+                                      _isLoading
+                                          ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Color(0xFFD43C38),
+                                                  ),
+                                            ),
+                                          )
+                                          : const Text(
+                                            'Connecter',
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              color: Color(0xFFD43C38),
+                                            ),
+                                          ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ] else ...[
-                    Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      margin: EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Row(
-                          children: [
-                            Icon(Icons.link, color: Colors.green),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Connecté à $_cameraUrl',
-                                style: TextStyle(fontWeight: FontWeight.w500),
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                          child: Container(
+                            padding: const EdgeInsets.all(12.0),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
                               ),
                             ),
-                            ElevatedButton.icon(
-                              onPressed: _disconnectFromCamera,
-                              icon: Icon(Icons.logout, size: 18),
-                              label: Text('Déconnecter'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.link, color: Colors.green),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Connecté à $_cameraUrl',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white,
+                                      fontFamily: 'Inter',
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                ElevatedButton.icon(
+                                  onPressed: _disconnectFromCamera,
+                                  icon: const Icon(
+                                    Icons.logout,
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
+                                  label: const Text(
+                                    'Déconnecter',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
                     Expanded(
-                      child: Card(
-                        elevation: 6,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
+                      child: FadeTransition(
+                        opacity: _fadeAnimation,
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(15),
-                          child:
-                              _isStreaming
-                                  ? Image.network(
-                                    _imageUrl,
-                                    fit: BoxFit.contain,
-                                    // Augmentation du cache pour éviter les rechargements constants
-                                    cacheWidth: 800,
-                                    cacheHeight: 600,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      print("Erreur de chargement: $error");
-                                      return Center(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.videocam_off,
-                                              size: 60,
-                                              color: Colors.red,
-                                            ),
-                                            SizedBox(height: 16),
-                                            Text(
-                                              'Erreur de chargement du flux vidéo',
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
+                          borderRadius: BorderRadius.circular(12),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.2),
+                                ),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child:
+                                    _isStreaming
+                                        ? Image.network(
+                                          _imageUrl,
+                                          fit: BoxFit.contain,
+                                          cacheWidth: 800,
+                                          cacheHeight: 600,
+                                          errorBuilder: (
+                                            context,
+                                            error,
+                                            stackTrace,
+                                          ) {
+                                            print(
+                                              "Erreur de chargement: $error",
+                                            );
+                                            return Center(
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.videocam_off,
+                                                    size: 60,
+                                                    color: Colors.red,
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  const Text(
+                                                    'Erreur de chargement du flux vidéo',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.white,
+                                                      fontFamily: 'Inter',
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    'Vérifiez que l\'ESP32-CAM est en marche\net que l\'URL est correcte',
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      color: Colors.white
+                                                          .withOpacity(0.8),
+                                                      fontFamily: 'Inter',
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  TextButton.icon(
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        _refreshCounter++;
+                                                        _imageUrl =
+                                                            '$_cameraUrl/capture?_t=$_refreshCounter';
+                                                      });
+                                                    },
+                                                    icon: const Icon(
+                                                      Icons.refresh,
+                                                      color: Colors.white,
+                                                    ),
+                                                    label: const Text(
+                                                      'Réessayer',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontFamily: 'Inter',
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                            ),
-                                            SizedBox(height: 8),
-                                            Text(
-                                              'Vérifiez que l\'ESP32-CAM est en marche\net que l\'URL est correcte',
-                                              textAlign: TextAlign.center,
-                                            ),
-                                            SizedBox(height: 16),
-                                            TextButton.icon(
-                                              onPressed: () {
-                                                // Essayer avec une URL alternative
-                                                setState(() {
-                                                  _refreshCounter++;
-                                                  // Tenter avec une autre URL couramment utilisée pour ESP32-CAM
-                                                  _imageUrl =
-                                                      '$_cameraUrl/capture?_t=$_refreshCounter';
-                                                });
-                                              },
-                                              icon: Icon(Icons.refresh),
-                                              label: Text('Réessayer'),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                    loadingBuilder: (
-                                      BuildContext context,
-                                      Widget child,
-                                      ImageChunkEvent? loadingProgress,
-                                    ) {
-                                      if (loadingProgress == null) {
-                                        return child;
-                                      }
-                                      return Center(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            CircularProgressIndicator(
-                                              value:
-                                                  loadingProgress
-                                                              .expectedTotalBytes !=
-                                                          null
-                                                      ? loadingProgress
-                                                              .cumulativeBytesLoaded /
-                                                          loadingProgress
-                                                              .expectedTotalBytes!
-                                                      : null,
-                                              color: Colors.deepOrange,
-                                            ),
-                                            SizedBox(height: 16),
-                                            Text('Chargement du flux vidéo...'),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  )
-                                  : Center(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.videocam_off,
-                                          size: 60,
-                                          color: Colors.grey,
-                                        ),
-                                        SizedBox(height: 16),
-                                        Text(
-                                          'Flux vidéo arrêté',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
+                                            );
+                                          },
+                                          loadingBuilder: (
+                                            BuildContext context,
+                                            Widget child,
+                                            ImageChunkEvent? loadingProgress,
+                                          ) {
+                                            if (loadingProgress == null) {
+                                              return child;
+                                            }
+                                            return Center(
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  CircularProgressIndicator(
+                                                    value:
+                                                        loadingProgress
+                                                                    .expectedTotalBytes !=
+                                                                null
+                                                            ? loadingProgress
+                                                                    .cumulativeBytesLoaded /
+                                                                loadingProgress
+                                                                    .expectedTotalBytes!
+                                                            : null,
+                                                    color: Colors.white,
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  const Text(
+                                                    'Chargement du flux vidéo...',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontFamily: 'Inter',
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        )
+                                        : Center(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              const Icon(
+                                                Icons.videocam_off,
+                                                size: 60,
+                                                color: Colors.grey,
+                                              ),
+                                              const SizedBox(height: 16),
+                                              const Text(
+                                                'Flux vidéo arrêté',
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                  fontFamily: 'Inter',
+                                                ),
+                                              ),
+                                              const SizedBox(height: 16),
+                                              ElevatedButton.icon(
+                                                onPressed: _startStream,
+                                                icon: const Icon(
+                                                  Icons.play_arrow,
+                                                  color: Color(0xFFD43C38),
+                                                ),
+                                                label: const Text(
+                                                  'Démarrer le flux',
+                                                  style: TextStyle(
+                                                    fontFamily: 'Inter',
+                                                    color: Color(0xFFD43C38),
+                                                  ),
+                                                ),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.white,
+                                                  foregroundColor: const Color(
+                                                    0xFFD43C38,
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 20,
+                                                        vertical: 12,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        SizedBox(height: 16),
-                                        ElevatedButton.icon(
-                                          onPressed: _startStream,
-                                          icon: Icon(Icons.play_arrow),
-                                          label: Text('Démarrer le flux'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.deepOrange,
-                                            foregroundColor: Colors.white,
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 20,
-                                              vertical: 12,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(30),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                    SizedBox(height: 16),
-                    Card(
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    const SizedBox(height: 16),
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                          child: Container(
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed:
-                                        _isLoading
-                                            ? null
-                                            : (_isStreaming
-                                                ? _stopStream
-                                                : _startStream),
-                                    icon: Icon(
-                                      _isStreaming
-                                          ? Icons.stop
-                                          : Icons.play_arrow,
-                                    ),
-                                    label: Text(
-                                      _isStreaming ? 'Arrêter' : 'Démarrer',
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed:
+                                            _isLoading
+                                                ? null
+                                                : (_isStreaming
+                                                    ? _stopStream
+                                                    : _startStream),
+                                        icon: Icon(
                                           _isStreaming
-                                              ? Colors.red
-                                              : Colors.deepOrange,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                              ? Icons.stop
+                                              : Icons.play_arrow,
+                                          color: Colors.white,
+                                        ),
+                                        label: Text(
+                                          _isStreaming ? 'Arrêter' : 'Démarrer',
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              _isStreaming
+                                                  ? Colors.red
+                                                  : Colors.green,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed:
+                                            _isLoading ? null : _toggleLed,
+                                        icon: const Icon(
+                                          Icons.lightbulb,
+                                          color: Colors.white,
+                                        ),
+                                        label: const Text(
+                                          'LED',
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.blue,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Divider(color: Colors.white.withOpacity(0.3)),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Qualité de l\'image:',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontFamily: 'Inter',
                                   ),
                                 ),
-                                SizedBox(width: 16),
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: _isLoading ? null : _toggleLed,
-                                    icon: Icon(Icons.lightbulb),
-                                    label: Text('LED'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _buildQualityButton('Basse', 10),
+                                    _buildQualityButton('Moyenne', 20),
+                                    _buildQualityButton('Haute', 30),
+                                  ],
                                 ),
                               ],
                             ),
-                            SizedBox(height: 12),
-                            Divider(),
-                            SizedBox(height: 4),
-                            Text(
-                              'Qualité de l\'image:',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildQualityButton('Basse', 10),
-                                _buildQualityButton('Moyenne', 20),
-                                _buildQualityButton('Haute', 30),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -543,7 +735,7 @@ class _ViewScreenState extends State<ViewScreen> {
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.3),
-              child: Center(
+              child: const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               ),
             ),
@@ -560,14 +752,22 @@ class _ViewScreenState extends State<ViewScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 4.0),
         child: ElevatedButton(
           onPressed: _isLoading ? null : () => _adjustQuality(quality),
-          child: Text(label),
           style: ElevatedButton.styleFrom(
             backgroundColor:
-                isSelected ? Colors.deepOrange : Colors.grey.shade200,
-            foregroundColor: isSelected ? Colors.white : Colors.black87,
+                isSelected ? Colors.white : Colors.white.withOpacity(0.1),
+            foregroundColor:
+                isSelected ? const Color(0xFFD43C38) : Colors.white,
             elevation: isSelected ? 2 : 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: Colors.white.withOpacity(0.3)),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              color: isSelected ? const Color(0xFFD43C38) : Colors.white,
             ),
           ),
         ),

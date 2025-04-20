@@ -1,8 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../widgets/custom_button.dart';
-import '../widgets/custom_text_field.dart';
 import 'package:intl/intl.dart';
 
 class HelpScreen extends StatefulWidget {
@@ -12,7 +11,8 @@ class HelpScreen extends StatefulWidget {
   _HelpScreenState createState() => _HelpScreenState();
 }
 
-class _HelpScreenState extends State<HelpScreen> {
+class _HelpScreenState extends State<HelpScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _subjectController = TextEditingController();
   final _messageController = TextEditingController();
@@ -20,12 +20,23 @@ class _HelpScreenState extends State<HelpScreen> {
   bool _isLoading = false;
   String _userName = '';
   String _userEmail = '';
-  int _rating = 0; // Default rating value
+  int _rating = 0;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     print("HelpScreen initialized");
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..forward();
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
     _loadUserInfo();
   }
 
@@ -34,6 +45,7 @@ class _HelpScreenState extends State<HelpScreen> {
     _subjectController.dispose();
     _messageController.dispose();
     _replyController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -57,58 +69,85 @@ class _HelpScreenState extends State<HelpScreen> {
 
   Widget _buildCommentHistory() {
     final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return SizedBox.shrink();
+    if (currentUser == null) return const SizedBox.shrink();
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Historique de vos demandes',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Container(
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            StreamBuilder<QuerySnapshot>(
-              stream:
-                  FirebaseFirestore.instance
-                      .collection('user_comments')
-                      .where('userId', isEqualTo: currentUser.uid)
-                      .orderBy('timestamp', descending: true)
-                      .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(
-                    child: CircularProgressIndicator(color: Colors.deepOrange),
-                  );
-                }
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Historique de vos demandes',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                StreamBuilder<QuerySnapshot>(
+                  stream:
+                      FirebaseFirestore.instance
+                          .collection('user_comments')
+                          .where('userId', isEqualTo: currentUser.uid)
+                          .orderBy('timestamp', descending: true)
+                          .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      );
+                    }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text('Vous n\'avez pas encore envoyé de demande'),
-                    ),
-                  );
-                }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            'Vous n\'avez pas encore envoyé de demande',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ),
+                      );
+                    }
 
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  itemCount: snapshot.data!.docs.length,
-                  itemBuilder: (context, index) {
-                    var doc = snapshot.data!.docs[index];
-                    var data = doc.data() as Map<String, dynamic>;
-
-                    return _buildConversationItem(data, doc.id);
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: snapshot.data!.docs.length,
+                      itemBuilder: (context, index) {
+                        var doc = snapshot.data!.docs[index];
+                        var data = doc.data() as Map<String, dynamic>;
+                        return _buildConversationItem(data, doc.id);
+                      },
+                    );
                   },
-                );
-              },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -139,80 +178,111 @@ class _HelpScreenState extends State<HelpScreen> {
         statusColor = Colors.grey;
     }
 
-    return Card(
-      margin: EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: ExpansionTile(
-        leading: Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
-        ),
-        title: Text(subject, style: TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(
-          '${_formatDate(timestamp)} • ${statusText}',
-          style: TextStyle(fontSize: 12),
-        ),
-        initiallyExpanded:
-            timestamp != null &&
-            timestamp.toDate().isAfter(
-              DateTime.now().subtract(Duration(minutes: 5)),
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
             ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: ExpansionTile(
+              leading: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              title: Text(
+                subject,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontFamily: 'Inter',
+                ),
+              ),
+              subtitle: Text(
+                '${_formatDate(timestamp)} • $statusText',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withOpacity(0.8),
+                  fontFamily: 'Inter',
+                ),
+              ),
+              initiallyExpanded:
+                  timestamp != null &&
+                  timestamp.toDate().isAfter(
+                    DateTime.now().subtract(const Duration(minutes: 5)),
+                  ),
               children: [
-                // Informations supplémentaires
-                Row(
-                  children: [
-                    Text(
-                      'Email: ',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(_userEmail),
-                  ],
-                ),
-                SizedBox(height: 16),
-
-                // Titre de conversation
-                Text(
-                  'Conversation:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-
-                // Utiliser la méthode _buildConversationHistory ici
-                _buildConversationHistoryView(data),
-
-                // Section pour répondre si le statut est "résolu"
-                if (status == 'résolu' ||
-                    adminResponse != null ||
-                    status == 'en_cours')
-                  SizedBox(height: 16),
-
-                // Permettre de répondre dans tous les cas sauf si le statut est "non_lu"
-                if (status != 'non_lu') _buildReplySection(docId),
-
-                // Statut et actions au bas
-                SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      statusText,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.bold,
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Email: ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                          Text(
+                            _userEmail,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Conversation:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildConversationHistoryView(data),
+                      if (status == 'résolu' ||
+                          adminResponse != null ||
+                          status == 'en_cours')
+                        const SizedBox(height: 16),
+                      if (status != 'non_lu') _buildReplySection(docId),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            statusText,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -221,22 +291,51 @@ class _HelpScreenState extends State<HelpScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Ajouter un message:',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontFamily: 'Inter',
+          ),
         ),
-        SizedBox(height: 8),
-        TextField(
-          controller: _replyController,
-          decoration: InputDecoration(
-            hintText: 'Votre réponse...',
-            border: OutlineInputBorder(),
-            suffixIcon: IconButton(
-              icon: Icon(Icons.send, color: Colors.deepOrange),
-              onPressed: () => _sendReply(docId),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+              ),
+              child: TextField(
+                controller: _replyController,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'Inter',
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Votre réponse...',
+                  hintStyle: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontFamily: 'Inter',
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    onPressed: () => _sendReply(docId),
+                  ),
+                ),
+                maxLines: 3,
+              ),
             ),
           ),
-          maxLines: 3,
         ),
       ],
     );
@@ -244,14 +343,13 @@ class _HelpScreenState extends State<HelpScreen> {
 
   Future<void> _sendReply(String docId) async {
     if (_replyController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Veuillez entrer un message')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez entrer un message')),
+      );
       return;
     }
 
     try {
-      // D'abord, récupérer le document actuel
       DocumentSnapshot doc =
           await FirebaseFirestore.instance
               .collection('user_comments')
@@ -265,20 +363,15 @@ class _HelpScreenState extends State<HelpScreen> {
       var data = doc.data() as Map<String, dynamic>;
       List<Map<String, dynamic>> conversations = [];
 
-      // Si la conversation existe déjà, la récupérer
       if (data.containsKey('conversations') && data['conversations'] is List) {
         conversations = List<Map<String, dynamic>>.from(data['conversations']);
-      }
-      // Sinon, créer une nouvelle liste avec les messages existants
-      else {
-        // Ajouter le message initial de l'utilisateur
+      } else {
         conversations.add({
           'sender': 'user',
           'message': data['message'] ?? '',
           'timestamp': data['timestamp'] ?? Timestamp.now(),
         });
 
-        // Ajouter la réponse de l'admin si elle existe
         if (data.containsKey('adminResponse') &&
             data['adminResponse'] != null) {
           conversations.add({
@@ -289,29 +382,22 @@ class _HelpScreenState extends State<HelpScreen> {
         }
       }
 
-      // Ajouter le nouveau message de l'utilisateur
       conversations.add({
         'sender': 'user',
         'message': _replyController.text.trim(),
         'timestamp': Timestamp.now(),
       });
 
-      // Mettre à jour le document avec la nouvelle conversation
       await FirebaseFirestore.instance
           .collection('user_comments')
           .doc(docId)
-          .update({
-            'conversations': conversations,
-            'status':
-                'en_cours', // Changer le statut en "en cours" après une réponse utilisateur
-          });
+          .update({'conversations': conversations, 'status': 'en_cours'});
 
-      // Vider le champ de texte
       _replyController.clear();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Message envoyé avec succès')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Message envoyé avec succès')),
+      );
     } catch (e) {
       print("Erreur lors de l'envoi de la réponse: $e");
       ScaffoldMessenger.of(
@@ -324,7 +410,6 @@ class _HelpScreenState extends State<HelpScreen> {
     if (!data.containsKey('conversations') ||
         !(data['conversations'] is List) ||
         (data['conversations'] as List).isEmpty) {
-      // Si pas d'historique de conversation, utiliser le format initial
       var message = data['message'] ?? '';
       var adminResponse = data['adminResponse'];
       var responseDate = data['responseDate'] as Timestamp?;
@@ -332,14 +417,11 @@ class _HelpScreenState extends State<HelpScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Message initial de l'utilisateur
           _buildMessageBubble(
             message: message,
             timestamp: data['timestamp'] as Timestamp?,
-            isAdmin: true,
+            isAdmin: false,
           ),
-
-          // Réponse de l'admin si elle existe
           if (adminResponse != null && adminResponse.isNotEmpty)
             _buildMessageBubble(
               message: adminResponse,
@@ -350,7 +432,6 @@ class _HelpScreenState extends State<HelpScreen> {
       );
     }
 
-    // Sinon, afficher l'historique complet des conversations
     List<Map<String, dynamic>> conversations = List<Map<String, dynamic>>.from(
       data['conversations'],
     );
@@ -358,24 +439,29 @@ class _HelpScreenState extends State<HelpScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children:
-          conversations.map((conversation) {
+          conversations.asMap().entries.map((entry) {
+            int index = entry.key;
+            var conversation = entry.value;
             bool isAdmin = conversation['sender'] == 'admin';
             String message = conversation['message'] ?? '';
-            Timestamp? timestamp;
-            if (conversation['timestamp'] is Timestamp) {
-              timestamp = conversation['timestamp'];
-            }
+            Timestamp? timestamp =
+                conversation['timestamp'] is Timestamp
+                    ? conversation['timestamp']
+                    : null;
 
-            return _buildMessageBubble(
-              message: message,
-              timestamp: timestamp,
-              isAdmin: isAdmin,
+            return AnimatedOpacity(
+              opacity: _fadeAnimation.value,
+              duration: Duration(milliseconds: 300 + (index * 100)),
+              child: _buildMessageBubble(
+                message: message,
+                timestamp: timestamp,
+                isAdmin: isAdmin,
+              ),
             );
           }).toList(),
     );
   }
 
-  // Méthode helper pour créer une bulle de message
   Widget _buildMessageBubble({
     required String message,
     required Timestamp? timestamp,
@@ -388,44 +474,58 @@ class _HelpScreenState extends State<HelpScreen> {
         left: isAdmin ? 32 : 0,
         right: isAdmin ? 0 : 32,
       ),
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color:
-            isAdmin ? Colors.deepOrange.withOpacity(0.1) : Colors.grey.shade200,
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        border:
-            isAdmin
-                ? Border.all(color: Colors.deepOrange.withOpacity(0.3))
-                : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                isAdmin ? 'Admin' : 'Utilisateur',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: isAdmin ? Colors.deepOrange : Colors.black87,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(isAdmin ? 0.2 : 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isAdmin ? 'Admin' : 'Utilisateur',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                    Text(
+                      _formatDate(timestamp),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withOpacity(0.7),
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              Text(
-                _formatDate(timestamp),
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ],
+            ),
           ),
-          SizedBox(height: 4),
-          Text(message),
-        ],
+        ),
       ),
     );
   }
 
-  // Ajoutez cette méthode de formatage de date
   String _formatDate(Timestamp? timestamp) {
     if (timestamp == null) return 'Date inconnue';
     return DateFormat('dd/MM/yyyy à HH:mm').format(timestamp.toDate());
@@ -440,7 +540,6 @@ class _HelpScreenState extends State<HelpScreen> {
       try {
         final currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser != null) {
-          // Créer une liste de conversations avec le message initial
           List<Map<String, dynamic>> conversations = [
             {
               'sender': 'user',
@@ -449,10 +548,8 @@ class _HelpScreenState extends State<HelpScreen> {
             },
           ];
 
-          // Utiliser un timestamp actuel pour garantir qu'il apparaît immédiatement
           Timestamp currentTimestamp = Timestamp.now();
 
-          // Ajouter le document avec le timestamp actuel
           await FirebaseFirestore.instance.collection('user_comments').add({
             'userId': currentUser.uid,
             'userName': _userName,
@@ -460,20 +557,17 @@ class _HelpScreenState extends State<HelpScreen> {
             'subject': _subjectController.text.trim(),
             'message': _messageController.text.trim(),
             'rating': _rating,
-            'timestamp':
-                currentTimestamp, // Utiliser un timestamp actuel au lieu de serverTimestamp
+            'timestamp': currentTimestamp,
             'status': 'non_lu',
             'conversations': conversations,
           });
 
-          // Réinitialiser le formulaire
           _subjectController.clear();
           _messageController.clear();
           setState(() {
-            _rating = 0; // Reset rating
+            _rating = 0;
           });
 
-          // Afficher un message de succès
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -484,7 +578,6 @@ class _HelpScreenState extends State<HelpScreen> {
           }
         }
       } catch (e) {
-        // En cas d'erreur
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -507,123 +600,300 @@ class _HelpScreenState extends State<HelpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aide & Support'),
-        backgroundColor: Colors.deepOrange,
+        title: const Text(
+          'Aide & Support',
+          style: TextStyle(color: Colors.white, fontFamily: 'Inter'),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 24),
-            _buildCommentHistory(),
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Nous contacter',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 24),
+              _buildCommentHistory(),
+              const SizedBox(height: 24),
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                    child: Container(
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Nous contacter',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Si vous avez des questions ou rencontrez des problèmes, n\'hésitez pas à nous envoyer un message :',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withOpacity(0.8),
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _subjectController,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                              ),
+                              decoration: InputDecoration(
+                                labelText: 'Sujet',
+                                labelStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontFamily: 'Inter',
+                                ),
+                                hintText: 'Entrez le sujet de votre message',
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontFamily: 'Inter',
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.subject,
+                                  color: Colors.white,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.white.withOpacity(0.3),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.white.withOpacity(0.3),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.1),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Veuillez entrer un sujet';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _messageController,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                              ),
+                              decoration: InputDecoration(
+                                labelText: 'Message',
+                                labelStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontFamily: 'Inter',
+                                ),
+                                hintText:
+                                    'Décrivez votre problème ou question en détail',
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontFamily: 'Inter',
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.message,
+                                  color: Colors.white,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.white.withOpacity(0.3),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: Colors.white.withOpacity(0.3),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.1),
+                              ),
+                              maxLines: 5,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Veuillez entrer votre message';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: _isLoading ? null : _submitComment,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFFD43C38),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child:
+                                  _isLoading
+                                      ? const CircularProgressIndicator(
+                                        color: Color(0xFFD43C38),
+                                      )
+                                      : const Text(
+                                        'ENVOYER',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          color: Color(0xFFD43C38),
+                                        ),
+                                      ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Si vous avez des questions ou rencontrez des problèmes, n\'hésitez pas à nous envoyer un message :',
-                        style: TextStyle(fontSize: 14),
-                      ),
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                        controller: _subjectController,
-                        label: 'Sujet',
-                        hint: 'Entrez le sujet de votre message',
-                        prefixIcon: Icons.subject,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Veuillez entrer un sujet';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                        controller: _messageController,
-                        label: 'Message',
-                        hint: 'Décrivez votre problème ou question en détail',
-                        prefixIcon: Icons.message,
-                        maxLines: 5, // Allow multiple lines for the message
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Veuillez entrer votre message';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 24),
-
-                      CustomButton(
-                        text: 'ENVOYER',
-                        isLoading: _isLoading,
-                        onPressed: _submitComment,
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Informations de contact
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Informations de contact',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+              const SizedBox(height: 24),
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                    child: Container(
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Informations de contact',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ListTile(
+                            leading: const Icon(
+                              Icons.email,
+                              color: Colors.white,
+                            ),
+                            title: const Text(
+                              'Email',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'detecteurincendie7@gmail.com',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                          ),
+                          Divider(color: Colors.white.withOpacity(0.3)),
+                          ListTile(
+                            leading: const Icon(
+                              Icons.phone,
+                              color: Colors.white,
+                            ),
+                            title: const Text(
+                              'Téléphone',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            subtitle: const Text(
+                              '+216 22 900 603',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    ListTile(
-                      leading: const Icon(
-                        Icons.email,
-                        color: Colors.deepOrange,
-                      ),
-                      title: const Text('Email'),
-                      subtitle: const Text('detecteurincendie7@gmail.com'),
-                    ),
-                    const Divider(),
-                    ListTile(
-                      leading: const Icon(
-                        Icons.phone,
-                        color: Colors.deepOrange,
-                      ),
-                      title: const Text('Téléphone'),
-                      subtitle: const Text('+216 22 900 603'),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

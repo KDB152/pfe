@@ -554,8 +554,8 @@ class _LoginScreenState extends State<LoginScreen>
   }
 }
 
-// Updated CustomTextField for modern look
-class CustomTextField extends StatelessWidget {
+// Updated CustomTextField to include visibility toggle for password fields
+class CustomTextField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
   final String hint;
@@ -582,65 +582,96 @@ class CustomTextField extends StatelessWidget {
   });
 
   @override
+  _CustomTextFieldState createState() => _CustomTextFieldState();
+}
+
+class _CustomTextFieldState extends State<CustomTextField> {
+  bool _obscureText = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText =
+        widget.isPassword; // Initially obscure if it's a password field
+  }
+
+  void _toggleVisibility() {
+    setState(() {
+      _obscureText = !_obscureText;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
-          style: labelStyle ?? Theme.of(context).textTheme.bodyMedium,
+          widget.label,
+          style: widget.labelStyle ?? Theme.of(context).textTheme.bodyMedium,
         ),
         SizedBox(height: 8),
         TextFormField(
-          controller: controller,
-          obscureText: isPassword,
+          controller: widget.controller,
+          obscureText: widget.isPassword ? _obscureText : false,
           style: TextStyle(
             color: Colors.white,
             fontFamily: 'Inter',
             fontSize: AppSizes.bodyFontSize(context),
           ),
           decoration: InputDecoration(
-            hintText: hint,
+            hintText: widget.hint,
             hintStyle: TextStyle(
               color: Colors.white.withOpacity(0.5),
               fontFamily: 'Inter',
             ),
             prefixIcon:
-                prefixIcon != null
+                widget.prefixIcon != null
                     ? Icon(
-                      prefixIcon,
-                      color: iconColor ?? Colors.white.withOpacity(0.7),
+                      widget.prefixIcon,
+                      color: widget.iconColor ?? Colors.white.withOpacity(0.7),
                       size: 20,
+                    )
+                    : null,
+            suffixIcon:
+                widget.isPassword
+                    ? IconButton(
+                      icon: Icon(
+                        _obscureText ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.white.withOpacity(0.7),
+                        size: 20,
+                      ),
+                      onPressed: _toggleVisibility,
                     )
                     : null,
             filled: true,
             fillColor: Colors.white.withOpacity(0.1),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(borderRadius),
+              borderRadius: BorderRadius.circular(widget.borderRadius),
               borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(borderRadius),
+              borderRadius: BorderRadius.circular(widget.borderRadius),
               borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(borderRadius),
+              borderRadius: BorderRadius.circular(widget.borderRadius),
               borderSide: BorderSide(
-                color: focusedBorderColor ?? Colors.white,
+                color: widget.focusedBorderColor ?? Colors.white,
                 width: 1.5,
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(borderRadius),
+              borderRadius: BorderRadius.circular(widget.borderRadius),
               borderSide: BorderSide(color: Color(0xFFD43C38)),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(borderRadius),
+              borderRadius: BorderRadius.circular(widget.borderRadius),
               borderSide: BorderSide(color: Color(0xFFD43C38), width: 1.5),
             ),
             contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
-          validator: validator,
+          validator: widget.validator,
         ),
       ],
     );
