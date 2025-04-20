@@ -32,95 +32,88 @@ class _FireDetectionBackgroundState extends State<FireDetectionBackground>
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Base gradient background - Utilisez Positioned.fill pour qu'il remplisse tout l'espace
-        Positioned.fill(
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFF0F1A30), // Bleu foncé en haut
-                      Color(0xFF1F2B50), // Bleu moyen
-                      Color(0xFF472D32), // Transition
-                      Color(0xFF842E31), // Rouge foncé
-                      Color(
-                        0xFFF25A3C,
-                      ).withOpacity(0.85), // Orange-rouge en bas
-                    ],
-                    stops: [
-                      0.0,
-                      0.3,
-                      0.5 + 0.05 * math.sin(_controller.value * math.pi * 2),
-                      0.7,
-                      1.0,
-                    ],
+    return Scaffold(
+      // Laisser resizeToAvoidBottomInset à true (comportement par défaut) pour permettre le redimensionnement
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Base gradient background
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFFD43C38), // Rouge foncé en haut
+                        Color(0xFFFF8A65), // Orange-rouge en bas
+                      ],
+                      stops: [0.0, 1.0],
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        ),
-
-        // House with fire illustration (using CustomPaint)
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: MediaQuery.of(context).size.height * 0.6,
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return CustomPaint(
-                painter: HouseFirePainter(animation: _controller),
-                size: Size.infinite,
-              );
-            },
-          ),
-        ),
-
-        // Subtle overlay to ensure text readability
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                Colors.black.withOpacity(0.2),
-                Colors.black.withOpacity(0.4),
-                Colors.transparent,
-              ],
-              stops: const [0.0, 0.3, 0.6, 1.0],
+                );
+              },
             ),
           ),
-        ),
 
-        // Light overlay at the top to ensure logo and text visibility
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          height: MediaQuery.of(context).size.height * 0.25,
-          child: Container(
+          // House with fire illustration
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: HouseFirePainter(animation: _controller),
+                  size: Size.infinite,
+                );
+              },
+            ),
+          ),
+
+          // Subtle overlay for text readability
+          Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.2),
+                  Colors.black.withOpacity(0.4),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.3, 0.6, 1.0],
               ),
             ),
           ),
-        ),
 
-        Positioned.fill(child: widget.child),
-      ],
+          // Light overlay at the top for logo and text visibility
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: MediaQuery.of(context).size.height * 0.25,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+
+          // Contenu enfant
+          Positioned.fill(child: SafeArea(child: widget.child)),
+        ],
+      ),
     );
   }
 }
@@ -151,7 +144,6 @@ class HouseFirePainter extends CustomPainter {
     housePath.lineTo(houseX + houseWidth, houseY);
     housePath.close();
 
-    // House paint - dark silhouette
     final housePaint =
         Paint()
           ..color = Colors.black.withOpacity(0.7)
@@ -201,8 +193,7 @@ class HouseFirePainter extends CustomPainter {
       windowPaint,
     );
 
-    // Draw flames coming from the house
-    // Base flame positions
+    // Draw flames
     List<Offset> flameBasePositions = [
       Offset(
         houseX + houseWidth * 0.3,
@@ -236,14 +227,12 @@ class HouseFirePainter extends CustomPainter {
     );
   }
 
-  // Modification des flammes pour plus de réalisme
   void _drawFlame(
     Canvas canvas,
     Offset basePosition,
     Size size,
     double animValue,
   ) {
-    // Variation plus naturelle de la hauteur des flammes
     double flameHeight =
         size.height * (0.1 + 0.06 * math.sin(animValue * math.pi * 3));
     double flameWidth = size.width * 0.07;
@@ -251,7 +240,6 @@ class HouseFirePainter extends CustomPainter {
     final flamePath = Path();
     flamePath.moveTo(basePosition.dx, basePosition.dy);
 
-    // Forme de flamme plus organique
     for (int i = 0; i <= 15; i++) {
       double t = i / 15;
       double angle = math.pi + t * math.pi;
@@ -270,17 +258,16 @@ class HouseFirePainter extends CustomPainter {
 
     flamePath.close();
 
-    // Gradient de flamme plus nuancé et réaliste
     final flameGradient = RadialGradient(
       center: Alignment(0.0, 0.5),
       radius: 1.0,
       colors: [
-        Colors.white.withOpacity(0.7), // Lumière blanche intense au centre
+        Colors.white.withOpacity(0.7),
         Colors.yellow.withOpacity(0.9),
         Colors.orange.withOpacity(0.85),
         Colors.deepOrange.withOpacity(0.8),
         Colors.red.withOpacity(0.6),
-        Colors.transparent, // Dégradé vers la transparence
+        Colors.transparent,
       ],
       stops: const [0.05, 0.2, 0.4, 0.7, 0.9, 1.0],
     );
@@ -297,7 +284,6 @@ class HouseFirePainter extends CustomPainter {
 
     canvas.drawPath(flamePath, flamePaint);
 
-    // Effet de lueur plus subtil et réaliste
     final glowPaint =
         Paint()
           ..color = Colors.orangeAccent.withOpacity(0.2)
@@ -317,7 +303,6 @@ class HouseFirePainter extends CustomPainter {
     for (int i = 0; i < 10; i++) {
       double t = (animValue + i * 0.08) % 1.0;
 
-      // Trajectoire de fumée plus complexe
       double smokeY =
           basePosition.dy -
           t * size.height * 0.35 * (1 + 0.2 * math.sin(t * math.pi * 5));
@@ -335,7 +320,6 @@ class HouseFirePainter extends CustomPainter {
             ..color = Colors.grey.withOpacity(opacity)
             ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
 
-      // Forme de fumée plus complexe et variée
       Path smokePath = Path();
       smokePath.addOval(
         Rect.fromCenter(
@@ -345,7 +329,6 @@ class HouseFirePainter extends CustomPainter {
         ),
       );
 
-      // Rotation légère de la fumée
       final Matrix4 rotationMatrix =
           Matrix4.identity()..rotateZ(random.nextDouble() * 0.2);
 
