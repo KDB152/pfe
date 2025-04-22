@@ -1,2 +1,0 @@
-C:/Flutter/flutter-app/pfe/android/app/.cxx/RelWithDebInfo/1621hs6j/x86/CMakeFiles/edit_cache.dir
-C:/Flutter/flutter-app/pfe/android/app/.cxx/RelWithDebInfo/1621hs6j/x86/CMakeFiles/rebuild_cache.dir

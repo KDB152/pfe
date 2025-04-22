@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import '../screens/home_screen.dart';
 
 class UsersCommentsScreen extends StatefulWidget {
-  const UsersCommentsScreen({Key? key}) : super(key: key);
+  const UsersCommentsScreen({super.key});
 
   @override
   _UsersCommentsScreenState createState() => _UsersCommentsScreenState();

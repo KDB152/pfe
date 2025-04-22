@@ -14,7 +14,7 @@ class CustomTextField extends StatefulWidget {
   final TextStyle? labelStyle;
 
   const CustomTextField({
-    Key? key,
+    super.key,
     required this.controller,
     required this.label,
     required this.hint,
@@ -26,7 +26,7 @@ class CustomTextField extends StatefulWidget {
     this.keyboardType = TextInputType.text,
     this.onTap,
     this.maxLines = 1,
-  }) : super(key: key);
+  });
 
   @override
   _CustomTextFieldState createState() => _CustomTextFieldState();

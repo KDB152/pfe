@@ -15,8 +15,8 @@ class CustomButton extends StatelessWidget {
     this.backgroundColor = Colors.blue,
     this.textColor = Colors.white,
     this.textSize, // Nouvelle propriété
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

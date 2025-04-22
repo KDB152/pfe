@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/notification_service.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   _SplashScreenState createState() => _SplashScreenState();

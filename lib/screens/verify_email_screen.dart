@@ -26,6 +26,8 @@ class VerifyEmailScreen extends StatefulWidget {
 }
 
 class EmailVerificationSuccessScreen extends StatelessWidget {
+  const EmailVerificationSuccessScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(
@@ -927,7 +929,7 @@ class CustomButton extends StatelessWidget {
   final Color? shadowColor;
 
   const CustomButton({
-    Key? key,
+    super.key,
     required this.text,
     required this.isLoading,
     this.onPressed,
@@ -940,7 +942,7 @@ class CustomButton extends StatelessWidget {
     this.fontFamily,
     this.elevation = 0,
     this.shadowColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

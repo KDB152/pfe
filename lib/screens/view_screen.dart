@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:async';
 
 class ViewScreen extends StatefulWidget {
-  const ViewScreen({Key? key}) : super(key: key);
+  const ViewScreen({super.key});
 
   @override
   _ViewScreenState createState() => _ViewScreenState();
