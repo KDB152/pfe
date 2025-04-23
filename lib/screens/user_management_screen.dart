@@ -7,7 +7,7 @@ import '../screens/home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class UserManagementScreen extends StatefulWidget {
-  const UserManagementScreen({super.key});
+  const UserManagementScreen({Key? key}) : super(key: key);
 
   @override
   _UserManagementScreenState createState() => _UserManagementScreenState();
@@ -72,7 +72,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   }
 
   void _showCreateUserDialog() {
-    final formKey = GlobalKey<FormState>();
+    final _formKey = GlobalKey<FormState>();
     String email = '';
     String password = '';
     String username = '';
@@ -96,7 +96,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 ),
                 child: SingleChildScrollView(
                   child: Form(
-                    key: formKey,
+                    key: _formKey,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -247,8 +247,8 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                             ),
                             ElevatedButton(
                               onPressed: () async {
-                                if (formKey.currentState!.validate()) {
-                                  formKey.currentState!.save();
+                                if (_formKey.currentState!.validate()) {
+                                  _formKey.currentState!.save();
 
                                   try {
                                     var emailExists =
