@@ -320,41 +320,7 @@ class FlamePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
 
-    for (final particle in particles) {
-      final paint =
-          Paint()
-            ..color = particle.color
-            ..style = PaintingStyle.fill
-            ..blendMode = BlendMode.plus;
-
-      final animatedPosition =
-          center +
-          particle.position +
-          Offset(
-            particle.velocity.dx * animationValue * 8,
-            particle.velocity.dy * animationValue * 8,
-          );
-
-      final wobble = math.sin(animationValue * 2 * math.pi) * 3;
-
-      final radius = particle.size * (1 - animationValue * 0.4);
-      final clampedX = (animatedPosition.dx + wobble).clamp(
-        radius,
-        size.width - radius,
-      );
-      final clampedY = (animatedPosition.dy + wobble).clamp(
-        radius,
-        size.height - radius,
-      );
-      final clampedPosition = Offset(clampedX, clampedY);
-
-      paint.color = particle.color.withOpacity(
-        math.max(0, particle.lifespan - (animationValue * 0.6)),
-      );
-
-      canvas.drawCircle(clampedPosition, radius, paint);
-    }
-
+    // Draw glow effect first (background)
     final glowPaint =
         Paint()
           ..color = Color(0xFFD43C38).withOpacity(0.2)
@@ -366,6 +332,59 @@ class FlamePainter extends CustomPainter {
       35 + (math.sin(animationValue * math.pi * 2) * 4),
       glowPaint,
     );
+
+    // Then draw particles
+    for (final particle in particles) {
+      // Calculate position based on animation
+      final animatedPosition =
+          center +
+          particle.position +
+          Offset(
+            particle.velocity.dx * animationValue * 8,
+            particle.velocity.dy * animationValue * 8,
+          );
+
+      final wobble = math.sin(animationValue * 2 * math.pi) * 3;
+      final radius = math.max(0.1, particle.size * (1 - animationValue * 0.4));
+
+      // Ensure we're not trying to draw outside the bounds
+      if (animatedPosition.dx.isNaN ||
+          animatedPosition.dy.isNaN ||
+          radius.isNaN ||
+          radius <= 0) {
+        continue; // Skip this particle if values are invalid
+      }
+
+      // Safely clamp position
+      final clampedX = (animatedPosition.dx + wobble).clamp(
+        radius,
+        size.width - radius,
+      );
+      final clampedY = (animatedPosition.dy + wobble).clamp(
+        radius,
+        size.height - radius,
+      );
+
+      // Create a valid offset
+      final clampedPosition = Offset(clampedX, clampedY);
+
+      // Calculate opacity
+      final opacity = math.max(
+        0.0,
+        math.min(1.0, particle.lifespan - (animationValue * 0.6)),
+      );
+
+      // Only draw if opacity is valid
+      if (opacity > 0) {
+        final paint =
+            Paint()
+              ..color = particle.color.withOpacity(opacity)
+              ..style = PaintingStyle.fill
+              ..blendMode = BlendMode.plus;
+
+        canvas.drawCircle(clampedPosition, radius, paint);
+      }
+    }
   }
 
   @override

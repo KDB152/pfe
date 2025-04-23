@@ -12,7 +12,7 @@ import 'screens/users_comments_screen.dart';
 import 'screens/intro_screen.dart';
 import 'screens/SplashScreen.dart';
 import 'screens/view_screen.dart';
-import 'services/sensor_service.dart'; // Ajouter cette importation
+import 'services/sensor_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
