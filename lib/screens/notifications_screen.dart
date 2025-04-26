@@ -1,8 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../models/sensor_data_model.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'package:overlay_support/overlay_support.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../services/notification_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -11,144 +12,50 @@ class NotificationsScreen extends StatefulWidget {
   _NotificationsScreenState createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen>
-    with SingleTickerProviderStateMixin {
-  List<Alert> _notifications = [];
+class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _isLoading = true;
-  late DatabaseReference _alertsRef;
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..forward();
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-
     _loadNotifications();
-    _setupRealtimeAlertsListener();
   }
 
-  @override
-  void dispose() {
-    _alertsRef.onValue.drain();
-    _animationController.dispose();
-    super.dispose();
-  }
+  Future<void> _loadNotifications() async {
+    if (FirebaseAuth.instance.currentUser == null) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          Provider.of<NotificationService>(
+            context,
+            listen: false,
+          ).clearNotifications();
+        });
+      }
+      return;
+    }
 
-  void _setupRealtimeAlertsListener() {
-    _alertsRef = FirebaseDatabase.instance.ref('alerts');
+    setState(() {
+      _isLoading = true;
+    });
 
-    _alertsRef.onValue.listen(
-      (event) {
-        if (event.snapshot.value != null) {
-          final alertsData = Map<String, dynamic>.from(
-            event.snapshot.value as Map,
-          );
-
-          alertsData.forEach((key, value) {
-            final alertData = Map<String, dynamic>.from(value);
-
-            if (alertData['isActive'] == true) {
-              final alert = Alert(
-                id: key,
-                title: alertData['title'] ?? 'Alerte',
-                description:
-                    alertData['description'] ?? 'Nouvelle alerte détectée',
-                timestamp: DateTime.fromMillisecondsSinceEpoch(
-                  alertData['timestamp'] ??
-                      DateTime.now().millisecondsSinceEpoch,
-                ),
-                type: _getAlertTypeFromString(alertData['type'] ?? 'info'),
-              );
-
-              _showTemporaryNotification(alert);
-
-              if (!_notifications.any((n) => n.id == alert.id)) {
-                setState(() {
-                  _notifications.insert(0, alert);
-                });
-              }
-            }
-          });
-        }
-      },
-      onError: (error) {
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur de connexion à la base de données: $error'),
-          ),
+          SnackBar(content: Text('Erreur lors du chargement: $e')),
         );
-      },
-    );
-  }
-
-  void _showTemporaryNotification(Alert alert) {
-    showOverlayNotification((context) {
-      return SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, -1),
-          end: Offset.zero,
-        ).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: Curves.easeInOut,
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.2)),
-              ),
-              child: SafeArea(
-                child: ListTile(
-                  leading: _buildAlertIcon(alert.type),
-                  title: Text(
-                    alert.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  subtitle: Text(
-                    alert.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                  onTap: () {
-                    OverlaySupportEntry.of(context)?.dismiss();
-                    Navigator.pushNamed(
-                      context,
-                      '/alert-details',
-                      arguments: alert,
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }, duration: const Duration(seconds: 3));
+      }
+    }
   }
 
   Widget _buildAlertIcon(AlertType type) {
@@ -194,78 +101,51 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  AlertType _getAlertTypeFromString(String typeStr) {
-    switch (typeStr.toLowerCase()) {
-      case 'smoke':
-        return AlertType.smoke;
-      case 'co2':
-        return AlertType.co2;
-      case 'test':
-        return AlertType.test;
-      case 'falsealarm':
-        return AlertType.falseAlarm;
-      case 'systemfailure':
-        return AlertType.systemFailure;
-      case 'info':
-      default:
-        return AlertType.info;
-    }
-  }
+  @override
+  Widget build(BuildContext context) {
+    final notificationService = Provider.of<NotificationService>(context);
 
-  Future<void> _loadNotifications() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final snapshot = await FirebaseDatabase.instance.ref('alerts').get();
-
-      if (snapshot.exists) {
-        final List<Alert> loadedNotifications = [];
-        final alertsData = Map<String, dynamic>.from(snapshot.value as Map);
-
-        alertsData.forEach((key, value) {
-          final alertData = Map<String, dynamic>.from(value);
-
-          loadedNotifications.add(
-            Alert(
-              id: key,
-              title: alertData['title'] ?? 'Alerte',
-              description: alertData['description'] ?? 'Alerte détectée',
-              timestamp: DateTime.fromMillisecondsSinceEpoch(
-                alertData['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
+    if (FirebaseAuth.instance.currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'Notifications',
+            style: TextStyle(color: Colors.white, fontFamily: 'Inter'),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              type: _getAlertTypeFromString(alertData['type'] ?? 'info'),
             ),
-          );
-        });
-
-        loadedNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-        setState(() {
-          _notifications = loadedNotifications;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _notifications = [];
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur lors du chargement des notifications: $e'),
+          ),
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD43C38), Color(0xFFFF8A65)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: const Center(
+            child: Text(
+              'Veuillez vous connecter pour voir les notifications.',
+              style: TextStyle(
+                color: Colors.white,
+                fontFamily: 'Inter',
+                fontSize: 18,
+              ),
+            ),
+          ),
         ),
       );
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -300,19 +180,15 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 : RefreshIndicator(
                   onRefresh: _loadNotifications,
                   child:
-                      _notifications.isEmpty
+                      notificationService.notifications.isEmpty
                           ? _buildEmptyState()
-                          : ListView.separated(
+                          : ListView.builder(
                             padding: const EdgeInsets.all(16.0),
-                            itemCount: _notifications.length,
-                            separatorBuilder:
-                                (context, index) => const SizedBox(height: 8),
+                            itemCount: notificationService.notifications.length,
                             itemBuilder: (context, index) {
-                              final notification = _notifications[index];
-                              return FadeTransition(
-                                opacity: _fadeAnimation,
-                                child: _buildNotificationItem(notification),
-                              );
+                              final notification =
+                                  notificationService.notifications[index];
+                              return _buildNotificationItem(notification);
                             },
                           ),
                 ),
@@ -356,81 +232,63 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   Widget _buildNotificationItem(Alert notification) {
     final dateFormat = _formatDate(notification.timestamp);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: InkWell(
-            onTap: () {
-              Navigator.pushNamed(
-                context,
-                '/alert-details',
-                arguments: notification,
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 12.0,
-                horizontal: 16.0,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildAlertIcon(notification.type),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          notification.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          notification.description,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          dateFormat,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
-                            fontSize: 12,
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                      ],
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      color: Colors.white.withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            '/alert-details',
+            arguments: notification,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildAlertIcon(notification.type),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      notification.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.white,
+                        fontFamily: 'Inter',
+                      ),
                     ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: Colors.white.withOpacity(0.5),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      notification.description,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      dateFormat,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 12,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.5)),
+            ],
           ),
         ),
       ),

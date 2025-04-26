@@ -13,6 +13,8 @@ import 'screens/intro_screen.dart';
 import 'screens/SplashScreen.dart';
 import 'screens/view_screen.dart';
 import 'services/sensor_service.dart';
+import 'services/notification_service.dart';
+import 'package:provider/provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +30,15 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  runApp(const FireDetectorApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => NotificationService()),
+        Provider(create: (context) => SensorService()),
+      ],
+      child: const FireDetectorApp(),
+    ),
+  );
 }
 
 // Le reste du code reste inchangé
@@ -140,6 +150,7 @@ class FireDetectorApp extends StatelessWidget {
                   const HomeScreen(userEmail: 'detecteurincendie7@gmail.com'),
           '/login': (context) => LoginScreen(),
           '/notifications': (context) => const NotificationsScreen(),
+          '/alert-details': (context) => const AlertDetailsScreen(),
           '/settings':
               (context) =>
                   const SettingsScreen(email: 'detecteurincendie7@gmail.com'),
@@ -147,7 +158,6 @@ class FireDetectorApp extends StatelessWidget {
           '/live-view': (context) => ViewScreen(),
           '/user-management': (context) => const UserManagementScreen(),
           '/users-comments': (context) => const UsersCommentsScreen(),
-          '/alert-details': (context) => const AlertDetailsScreen(),
         },
       ),
     );

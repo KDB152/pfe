@@ -3,9 +3,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/sensor_data_model.dart';
+import 'package:flutter/foundation.dart';
 
-class NotificationService {
+class NotificationService extends ChangeNotifier {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
@@ -16,17 +18,20 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
-  // Liste pour stocker les notifications à afficher dans notifications_screen
   final List<Alert> _notifications = [];
   List<Alert> get notifications => _notifications;
+  bool _needsNotify = false;
+  final Set<String> _processedAlertIds = {};
 
   Future<void> initialize() async {
-    if (!_isListening) {
+    if (_isListening) return;
+
+    try {
       // Initialiser Firebase Messaging
       await _firebaseMessaging.requestPermission();
       await _firebaseMessaging.getToken();
 
-      // Initialiser les notifications locales avec un style moderne
+      // Initialiser les notifications locales
       const AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
       const InitializationSettings initializationSettings =
@@ -35,7 +40,9 @@ class NotificationService {
 
       // Configurer les notifications en arrière-plan
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        _showNotification(message);
+        if (FirebaseAuth.instance.currentUser != null) {
+          _showNotification(message);
+        }
       });
 
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
@@ -44,12 +51,70 @@ class NotificationService {
 
       // Configurer l'écoute des alertes Firebase
       _alertsRef = FirebaseDatabase.instance.ref('alerts');
+      await _loadInitialAlerts();
       _setupListener();
       _isListening = true;
+
+      // Démarrer un timer pour debounce les notifications
+      _debounceNotifyListeners();
+    } catch (e) {
+      debugPrint('Erreur lors de l\'initialisation de NotificationService: $e');
     }
   }
 
-  // Méthode pour afficher une notification locale avec un design moderne
+  void _debounceNotifyListeners() {
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (_needsNotify) {
+        _needsNotify = false;
+        notifyListeners();
+      }
+      return _isListening;
+    });
+  }
+
+  Future<void> _loadInitialAlerts() async {
+    if (FirebaseAuth.instance.currentUser == null) return;
+
+    try {
+      final snapshot =
+          await _alertsRef!.orderByChild('timestamp').limitToLast(50).get();
+      if (snapshot.exists) {
+        final alertsData = Map<String, dynamic>.from(snapshot.value as Map);
+        final loadedNotifications = await compute(_parseAlerts, alertsData);
+
+        _notifications.clear();
+        _notifications.addAll(loadedNotifications);
+        _processedAlertIds.addAll(loadedNotifications.map((alert) => alert.id));
+        _needsNotify = true;
+      }
+    } catch (e) {
+      debugPrint('Erreur lors du chargement initial des alertes: $e');
+    }
+  }
+
+  static List<Alert> _parseAlerts(Map<String, dynamic> alertsData) {
+    final List<Alert> loadedNotifications = [];
+    alertsData.forEach((key, value) {
+      final alertData = Map<String, dynamic>.from(value);
+      if (alertData['isActive'] == true) {
+        loadedNotifications.add(
+          Alert(
+            id: key,
+            title: alertData['title'] ?? 'Alerte',
+            description: alertData['description'] ?? 'Alerte détectée',
+            timestamp: DateTime.fromMillisecondsSinceEpoch(
+              alertData['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
+            ),
+            type: _getAlertTypeFromString(alertData['type'] ?? 'info'),
+          ),
+        );
+      }
+    });
+    loadedNotifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return loadedNotifications;
+  }
+
   Future<void> _showNotification(RemoteMessage message) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
@@ -73,28 +138,9 @@ class NotificationService {
     );
   }
 
-  // Méthode pour envoyer une notification manuellement avec un design moderne
   Future<void> sendThresholdNotification(String title, String body) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-          'threshold_channel',
-          'Threshold Notifications',
-          importance: Importance.max,
-          priority: Priority.high,
-          showWhen: true,
-          styleInformation: BigTextStyleInformation(''),
-          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-          color: Colors.deepOrange,
-          enableLights: true,
-          ledColor: Colors.deepOrange,
-          ledOnMs: 1000,
-          ledOffMs: 500,
-        );
-    const NotificationDetails platformChannelSpecifics = NotificationDetails(
-      android: androidPlatformChannelSpecifics,
-    );
+    if (FirebaseAuth.instance.currentUser == null) return;
 
-    // Créer une alerte à partir de la notification
     final alert = Alert(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: title,
@@ -103,76 +149,127 @@ class NotificationService {
       type:
           title.contains('Température')
               ? AlertType.temperature
-              : AlertType.humidity,
+              : title.contains('Humidité')
+              ? AlertType.humidity
+              : AlertType.info,
     );
 
-    // Ajouter la notification à la liste
-    _notifications.insert(
-      0,
-      alert,
-    ); // Insérer au début pour afficher les plus récentes en haut
+    try {
+      await FirebaseDatabase.instance.ref('alerts').child(alert.id).set({
+        'title': alert.title,
+        'description': alert.description,
+        'timestamp': alert.timestamp.millisecondsSinceEpoch,
+        'type': alert.type.toString().split('.').last,
+        'isActive': true,
+        'notified': false,
+      });
+    } catch (e) {
+      debugPrint('Erreur lors de l\'écriture de l\'alerte dans Firebase: $e');
+    }
 
-    // Afficher la notification
-    await _flutterLocalNotificationsPlugin.show(
-      1,
-      title,
-      body,
-      platformChannelSpecifics,
-    );
+    if (!_processedAlertIds.contains(alert.id)) {
+      addNotification(alert);
+      _processedAlertIds.add(alert.id);
+
+      const AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+            'threshold_channel',
+            'Threshold Notifications',
+            importance: Importance.max,
+            priority: Priority.high,
+            showWhen: true,
+            styleInformation: BigTextStyleInformation(''),
+            largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+            color: Colors.deepOrange,
+            enableLights: true,
+            ledColor: Colors.deepOrange,
+            ledOnMs: 1000,
+            ledOffMs: 500,
+          );
+      const NotificationDetails platformChannelSpecifics = NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+      );
+
+      await _flutterLocalNotificationsPlugin.show(
+        1,
+        title,
+        body,
+        platformChannelSpecifics,
+      );
+    }
   }
 
   void _setupListener() {
-    _alertsRef?.onChildAdded.listen((event) {
-      if (event.snapshot.value != null) {
-        final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+    _alertsRef?.onChildAdded.listen(
+      (event) {
+        if (event.snapshot.value != null &&
+            FirebaseAuth.instance.currentUser != null) {
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
 
-        if (data['isActive'] == true) {
-          final alert = Alert(
-            id: event.snapshot.key ?? '',
-            title: data['title'] ?? 'Alerte',
-            description: data['description'] ?? 'Nouvelle alerte détectée',
-            timestamp: DateTime.fromMillisecondsSinceEpoch(
-              data['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
-            ),
-            type: _getAlertTypeFromString(data['type'] ?? 'info'),
-          );
+          if (data['isActive'] == true) {
+            final alert = Alert(
+              id: event.snapshot.key ?? '',
+              title: data['title'] ?? 'Alerte',
+              description: data['description'] ?? 'Nouvelle alerte détectée',
+              timestamp: DateTime.fromMillisecondsSinceEpoch(
+                data['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
+              ),
+              type: _getAlertTypeFromString(data['type'] ?? 'info'),
+            );
 
-          // Afficher la notification via overlay
-          showOverlayNotification((context) {
-            return _buildNotificationCard(context, alert);
-          }, duration: const Duration(seconds: 3));
+            if (!_processedAlertIds.contains(alert.id)) {
+              addNotification(alert);
+              _processedAlertIds.add(alert.id);
 
-          // Envoyer une notification push et l'ajouter à la liste
-          sendThresholdNotification(alert.title, alert.description);
+              showOverlayNotification((context) {
+                return _buildNotificationCard(context, alert);
+              }, duration: const Duration(seconds: 3));
+            }
+          }
         }
-      }
-    });
+      },
+      onError: (error) {
+        debugPrint('Erreur dans onChildAdded: $error');
+      },
+    );
 
-    _alertsRef?.onChildChanged.listen((event) {
-      if (event.snapshot.value != null) {
-        final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+    _alertsRef?.onChildChanged.listen(
+      (event) {
+        if (event.snapshot.value != null &&
+            FirebaseAuth.instance.currentUser != null) {
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
 
-        if (data['isActive'] == true && data['notified'] != true) {
-          final alert = Alert(
-            id: event.snapshot.key ?? '',
-            title: data['title'] ?? 'Alerte',
-            description: data['description'] ?? 'Nouvelle alerte détectée',
-            timestamp: DateTime.fromMillisecondsSinceEpoch(
-              data['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
-            ),
-            type: _getAlertTypeFromString(data['type'] ?? 'info'),
-          );
+          if (data['isActive'] == true && data['notified'] != true) {
+            final alert = Alert(
+              id: event.snapshot.key ?? '',
+              title: data['title'] ?? 'Alerte',
+              description: data['description'] ?? 'Nouvelle alerte détectée',
+              timestamp: DateTime.fromMillisecondsSinceEpoch(
+                data['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
+              ),
+              type: _getAlertTypeFromString(data['type'] ?? 'info'),
+            );
 
-          showOverlayNotification((context) {
-            return _buildNotificationCard(context, alert);
-          }, duration: const Duration(seconds: 3));
+            final index = notifications.indexWhere((n) => n.id == alert.id);
+            if (index != -1) {
+              updateNotification(index, alert);
+            } else if (!_processedAlertIds.contains(alert.id)) {
+              addNotification(alert);
+              _processedAlertIds.add(alert.id);
+            }
 
-          sendThresholdNotification(alert.title, alert.description);
+            showOverlayNotification((context) {
+              return _buildNotificationCard(context, alert);
+            }, duration: const Duration(seconds: 3));
 
-          _alertsRef?.child(event.snapshot.key!).update({'notified': true});
+            _alertsRef?.child(event.snapshot.key!).update({'notified': true});
+          }
         }
-      }
-    });
+      },
+      onError: (error) {
+        debugPrint('Erreur dans onChildChanged: $error');
+      },
+    );
   }
 
   Widget _buildNotificationCard(BuildContext context, Alert alert) {
@@ -249,7 +346,7 @@ class NotificationService {
     );
   }
 
-  AlertType _getAlertTypeFromString(String typeStr) {
+  static AlertType _getAlertTypeFromString(String typeStr) {
     switch (typeStr.toLowerCase()) {
       case 'smoke':
         return AlertType.smoke;
@@ -261,13 +358,29 @@ class NotificationService {
         return AlertType.falseAlarm;
       case 'systemfailure':
         return AlertType.systemFailure;
+      case 'humidity':
+        return AlertType.humidity;
+      case 'temperature':
+        return AlertType.temperature;
       case 'info':
       default:
         return AlertType.info;
     }
   }
 
-  void dispose() {
-    _isListening = false;
+  void addNotification(Alert alert) {
+    _notifications.insert(0, alert);
+    _needsNotify = true;
+  }
+
+  void updateNotification(int index, Alert alert) {
+    _notifications[index] = alert;
+    _needsNotify = true;
+  }
+
+  void clearNotifications() {
+    _notifications.clear();
+    _processedAlertIds.clear();
+    _needsNotify = true;
   }
 }
