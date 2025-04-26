@@ -3,7 +3,6 @@ class SensorData {
   final double humidity;
   final double smoke;
   final double co2;
-
   final bool isAlarmActive;
   final DateTime timestamp;
 
@@ -15,6 +14,24 @@ class SensorData {
     required this.isAlarmActive,
     required this.timestamp,
   });
+
+  SensorData copyWith({
+    double? temperature,
+    double? humidity,
+    double? smoke,
+    double? co2,
+    bool? isAlarmActive,
+    DateTime? timestamp,
+  }) {
+    return SensorData(
+      temperature: temperature ?? this.temperature,
+      humidity: humidity ?? this.humidity,
+      smoke: smoke ?? this.smoke,
+      co2: co2 ?? this.co2,
+      isAlarmActive: isAlarmActive ?? this.isAlarmActive,
+      timestamp: timestamp ?? this.timestamp,
+    );
+  }
 
   factory SensorData.fromJson(Map<String, dynamic> json) {
     return SensorData(

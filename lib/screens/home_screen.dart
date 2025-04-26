@@ -31,9 +31,11 @@ class _HomeScreenState extends State<HomeScreen>
   final SensorService _sensorService = SensorService();
   late StreamSubscription<SensorData> _sensorSubscription;
   Timer? _debounceTimer;
+  Timer? _chartRefreshTimer;
 
-  final List<double> _temperatureData = List.generate(20, (_) => 22.0);
-  final List<double> _humidityData = List.generate(20, (_) => 45.0);
+  // Initialize chart data lists
+  final List<double> _temperatureData = List.generate(20, (_) => 0.0);
+  final List<double> _humidityData = List.generate(20, (_) => 0.0);
   final List<double> _smokeData = List.generate(20, (_) => 0.0);
   final List<double> _co2Data = List.generate(20, (_) => 0.0);
 
@@ -64,12 +66,40 @@ class _HomeScreenState extends State<HomeScreen>
       });
       _loadSensorData();
     });
+
+    // Set up periodic timer to refresh charts every minute
+    _chartRefreshTimer = Timer.periodic(Duration(minutes: 1), (timer) {
+      if (_sensorData != null) {
+        setState(() {
+          _updateChartData(_sensorData!);
+        });
+      }
+    });
+  }
+
+  void _updateChartData(SensorData data) {
+    for (int i = 0; i < _temperatureData.length - 1; i++) {
+      _temperatureData[i] = _temperatureData[i + 1];
+      _humidityData[i] = _humidityData[i + 1];
+      _smokeData[i] = _smokeData[i + 1];
+      _co2Data[i] = _co2Data[i + 1];
+    }
+
+    // Add new values at the end
+    _temperatureData[_temperatureData.length - 1] = data.temperature.clamp(
+      0,
+      60,
+    );
+    _humidityData[_humidityData.length - 1] = data.humidity.clamp(0, 100);
+    _smokeData[_smokeData.length - 1] = data.smoke.clamp(0, 100);
+    _co2Data[_co2Data.length - 1] = data.co2.clamp(0, 1100);
   }
 
   @override
   void dispose() {
     _sensorSubscription.cancel();
     _debounceTimer?.cancel();
+    _chartRefreshTimer?.cancel();
     _animationController.dispose();
     super.dispose();
   }
@@ -85,51 +115,95 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _onSensorDataUpdate(SensorData data) {
-    if (_sensorData == null || _hasSignificantChange(_sensorData!, data)) {
-      setState(() {
-        _sensorData = data;
-        _isLoading = false;
-        _updateChartData(data);
-      });
+    // Ajuster les valeurs selon les conditions spécifiées
+    SensorData adjustedData = data;
 
-      _animationController.reset();
-      _animationController.forward();
+    if (data.smoke == 3.0) {
+      adjustedData = data.copyWith(smoke: 30.0);
     }
-  }
 
-  bool _hasSignificantChange(SensorData oldData, SensorData newData) {
-    const double threshold = 0.5;
-    return (oldData.temperature - newData.temperature).abs() > threshold ||
-        (oldData.humidity - newData.humidity).abs() > threshold ||
-        (oldData.smoke - newData.smoke).abs() > threshold ||
-        (oldData.co2 - newData.co2).abs() > threshold;
-  }
+    if (data.co2 == 0.0) {
+      adjustedData = data.copyWith(co2: 400.0);
 
-  void _updateChartData(SensorData data) {
-    _temperatureData.removeAt(0);
-    _temperatureData.add(data.temperature);
+      // Si les deux conditions sont réunies, nous devons les appliquer ensemble
+      if (data.smoke == 3.0) {
+        adjustedData = adjustedData.copyWith(smoke: 30.0);
+      }
+    }
 
-    _humidityData.removeAt(0);
-    _humidityData.add(data.humidity);
+    setState(() {
+      _sensorData = adjustedData;
+      _isLoading = false;
+      _updateChartData(adjustedData);
+    });
 
-    _smokeData.removeAt(0);
-    _smokeData.add(data.smoke * 100);
-
-    _co2Data.removeAt(0);
-    _co2Data.add(data.co2);
+    _animationController.reset();
+    _animationController.forward();
   }
 
   Future<void> _loadSensorData() async {
     setState(() {
       _isLoading = true;
+
+      // Initialiser toutes les données du graphique à zéro
+      for (int i = 0; i < 20; i++) {
+        _temperatureData[i] = 0.0;
+        _humidityData[i] = 0.0;
+        _smokeData[i] = 0.0;
+        _co2Data[i] = 0.0;
+      }
     });
 
     try {
-      final data = await _sensorService.getLastSensorData();
+      SensorData data = await _sensorService.getLastSensorData();
+
+      // Ajuster les valeurs selon les conditions spécifiées
+      if (data.smoke == 3.0) {
+        data = data.copyWith(smoke: 30.0);
+      }
+
+      if (data.co2 == 0.0) {
+        data = data.copyWith(co2: 400.0);
+      }
+
       setState(() {
         _sensorData = data;
-        _updateChartData(data);
         _isLoading = false;
+      });
+
+      // Animation des graphiques
+      Future.delayed(const Duration(seconds: 2), () {
+        const animationDuration = Duration(milliseconds: 500);
+        final startTime = DateTime.now();
+
+        Timer.periodic(const Duration(milliseconds: 16), (timer) {
+          final elapsedTime = DateTime.now().difference(startTime);
+
+          if (elapsedTime >= animationDuration) {
+            setState(() {
+              for (int i = 0; i < 20; i++) {
+                _temperatureData[i] = data.temperature.clamp(0, 60);
+                _humidityData[i] = data.humidity.clamp(0, 100);
+                _smokeData[i] = (data.smoke).clamp(0, 100);
+                _co2Data[i] = data.co2.clamp(0, 1100);
+              }
+            });
+            timer.cancel();
+          } else {
+            final progress =
+                elapsedTime.inMilliseconds / animationDuration.inMilliseconds;
+
+            setState(() {
+              for (int i = 0; i < 20; i++) {
+                _temperatureData[i] =
+                    (data.temperature.clamp(0, 60) * progress);
+                _humidityData[i] = (data.humidity.clamp(0, 100) * progress);
+                _smokeData[i] = ((data.smoke).clamp(0, 100) * progress);
+                _co2Data[i] = (data.co2.clamp(0, 1100) * progress);
+              }
+            });
+          }
+        });
       });
     } catch (e) {
       setState(() {
@@ -237,9 +311,10 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 _buildSensorDataCard(
                   title: 'Probabilité d\'Incendie',
-                  value: '${(_sensorData!.smoke).toStringAsFixed(1)} %',
+                  value:
+                      '${(_sensorData!.smoke).toStringAsFixed(1)} %', // Fix scaling
                   icon: Icons.local_fire_department_outlined,
-                  color: Colors.grey.shade400,
+                  color: const Color(0xFFFFCA28),
                   animation: _animationController,
                 ),
                 _buildSensorDataCard(
@@ -278,7 +353,6 @@ class _HomeScreenState extends State<HomeScreen>
     required Color color,
     required Animation<double> animation,
   }) {
-    // Vérifier si c'est la carte "Probabilité Incendie" pour ajuster la taille
     final bool isProbabiliteIncendie = title == 'Probabilité d\'Incendie';
 
     return ClipRRect(
@@ -315,8 +389,7 @@ class _HomeScreenState extends State<HomeScreen>
                     fontWeight: FontWeight.w600,
                     fontSize:
                         isProbabiliteIncendie
-                            ? AppSizes.bodyFontSize(context) *
-                                0.91 // Plus petit pour "Probabilité Incendie"
+                            ? AppSizes.bodyFontSize(context) * 0.91
                             : AppSizes.bodyFontSize(context),
                     color: Colors.white,
                     fontFamily: 'Inter',
@@ -398,10 +471,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   int _selectedTabIndex = 0;
   final List<String> _tabTitles = [
+    'Probabilité d\'incendie',
     'Température',
     'Humidité',
     'Gaz',
-    'Probabilité d\incendie',
   ];
 
   Widget _buildTabSelector() {
@@ -446,10 +519,7 @@ class _HomeScreenState extends State<HomeScreen>
                         isSelected
                             ? Colors.white
                             : Colors.white.withOpacity(0.8),
-                    fontWeight:
-                        isSelected
-                            ? FontWeight.w700
-                            : FontWeight.w500, // Corrected parameter
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     fontFamily: 'Inter',
                   ),
                 ),
@@ -466,54 +536,77 @@ class _HomeScreenState extends State<HomeScreen>
     String label;
     Color color;
     String unit;
+    double maxY;
+    double minY;
+    double interval;
 
     switch (_selectedTabIndex) {
-      case 0:
+      case 0: // Probabilité d'incendie
+        data = _smokeData;
+        label = 'Probabilité d\'incendie';
+        color = Color(0xFFFFCA28);
+        unit = '%';
+        minY = 0;
+        maxY = 100;
+        interval = 20;
+        break;
+      case 1: // Température
         data = _temperatureData;
         label = 'Température';
         color = Color(0xFFD43C38);
         unit = '°C';
+        minY = 0;
+        maxY = 60;
+        interval = 10;
         break;
-      case 1:
+      case 2: // Humidité
         data = _humidityData;
         label = 'Humidité';
         color = Colors.blueAccent;
         unit = '%';
+        minY = 0;
+        maxY = 100;
+        interval = 25;
         break;
-      case 2:
-        data = _smokeData;
-        label = 'Probabilité d\incendie';
-        color = Colors.grey.shade400;
-        unit = '%';
-        break;
-      case 3:
+      case 3: // Gaz (CO2)
         data = _co2Data;
-        label = 'CO2';
+        label = 'Gaz';
         color = Colors.greenAccent;
         unit = 'ppm';
+        minY = 0; // Adjust to match real data range
+        maxY = 1100;
+        interval = 200;
         break;
       default:
-        data = _temperatureData;
-        label = 'Température';
-        color = Color(0xFFD43C38);
-        unit = '°C';
+        data = _smokeData;
+        label = 'Probabilité d\'incendie';
+        color = Color(0xFFFFCA28);
+        unit = '%';
+        minY = 0;
+        maxY = 100;
+        interval = 25;
     }
 
     return LineChart(
       LineChartData(
+        minY: minY,
+        maxY: maxY,
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
           drawHorizontalLine: true,
-          horizontalInterval:
-              (data.reduce((a, b) => a > b ? a : b) / 5).ceilToDouble(),
+          horizontalInterval: interval,
           getDrawingHorizontalLine: (value) {
             return FlLine(color: Colors.white.withOpacity(0.1), strokeWidth: 1);
           },
         ),
         titlesData: FlTitlesData(
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -533,8 +626,7 @@ class _HomeScreenState extends State<HomeScreen>
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              interval:
-                  (data.reduce((a, b) => a > b ? a : b) / 5).ceilToDouble(),
+              interval: interval,
               getTitlesWidget: (value, meta) {
                 return Text(
                   value.toInt().toString(),
@@ -545,7 +637,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 );
               },
-              reservedSize: 30,
+              reservedSize: 40,
             ),
           ),
         ),
@@ -677,7 +769,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           _buildDrawerItem(
             icon: Icons.videocam,
-            iconColor: Color(0xFFFF8A65),
+            iconColor: Color.fromARGB(255, 255, 255, 255),
             title: 'Visualiser le local',
             onTap: () {
               Navigator.pushNamed(context, '/live-view');
