@@ -16,13 +16,10 @@ import 'services/sensor_service.dart';
 import 'services/notification_service.dart';
 import 'package:provider/provider.dart';
 
+// Dans main.dart
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-
-  // Initialiser SensorService
-  final sensorService = SensorService();
-  await sensorService.initialize();
 
   // Fixer l'orientation de l'écran en mode portrait uniquement
   SystemChrome.setPreferredOrientations([

@@ -12,6 +12,8 @@ import '../widgets/fire_detection_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/constants.dart';
 import 'dart:ui';
+import '../services/notification_service.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userEmail;
@@ -30,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen>
   final AuthService _authService = AuthService();
   final SensorService _sensorService = SensorService();
   late StreamSubscription<SensorData> _sensorSubscription;
+  late final NotificationService _notificationService;
   Timer? _debounceTimer;
   Timer? _chartRefreshTimer;
 
@@ -45,6 +48,11 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    _notificationService = Provider.of<NotificationService>(
+      context,
+      listen: false,
+    );
+    _notificationService.enableOverlayNotifications(true);
 
     _animationController = AnimationController(
       vsync: this,
@@ -97,6 +105,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    _notificationService.enableOverlayNotifications(false);
     _sensorSubscription.cancel();
     _debounceTimer?.cancel();
     _chartRefreshTimer?.cancel();

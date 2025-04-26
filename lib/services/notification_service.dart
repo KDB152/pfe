@@ -27,39 +27,25 @@ class NotificationService extends ChangeNotifier {
     if (_isListening) return;
 
     try {
-      // Initialiser Firebase Messaging
-      await _firebaseMessaging.requestPermission();
-      await _firebaseMessaging.getToken();
-
-      // Initialiser les notifications locales
-      const AndroidInitializationSettings initializationSettingsAndroid =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
-      const InitializationSettings initializationSettings =
-          InitializationSettings(android: initializationSettingsAndroid);
-      await _flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-      // Configurer les notifications en arrière-plan
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        if (FirebaseAuth.instance.currentUser != null) {
-          _showNotification(message);
-        }
-      });
-
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        // Gérer l'ouverture de l'application via la notification
-      });
-
-      // Configurer l'écoute des alertes Firebase
-      _alertsRef = FirebaseDatabase.instance.ref('alerts');
-      await _loadInitialAlerts();
-      _setupListener();
-      _isListening = true;
-
-      // Démarrer un timer pour debounce les notifications
-      _debounceNotifyListeners();
+      // Vérifier si l'utilisateur est connecté avant d'initialiser l'écoute
+      if (FirebaseAuth.instance.currentUser != null) {
+        // Continuer avec l'initialisation...
+        await _firebaseMessaging.requestPermission();
+        // ...
+      } else {
+        // Reporter l'initialisation jusqu'à ce que l'utilisateur soit connecté
+        debugPrint('Reporter l\'initialisation jusqu\'à la connexion');
+        return;
+      }
     } catch (e) {
-      debugPrint('Erreur lors de l\'initialisation de NotificationService: $e');
+      debugPrint('Erreur lors de l\'initialisation: $e');
     }
+  }
+
+  Future<void> initializeAfterLogin() async {
+    // Réinitialiser ici après la connexion réussie
+    _isListening = false;
+    await initialize();
   }
 
   void _debounceNotifyListeners() {
@@ -199,31 +185,43 @@ class NotificationService extends ChangeNotifier {
     }
   }
 
+  // Dans notification_service.dart
+  bool _isUserOnHomeScreen = false;
+
+  void setUserOnHomeScreen(bool isOnHomeScreen) {
+    _isUserOnHomeScreen = isOnHomeScreen;
+  }
+
   void _setupListener() {
     _alertsRef?.onChildAdded.listen(
       (event) {
         if (event.snapshot.value != null &&
             FirebaseAuth.instance.currentUser != null) {
-          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+          // Vérifier si l'utilisateur est sur l'écran home
+          // Vous pouvez utiliser une variable globale ou un autre mécanisme pour suivre l'écran actuel
+          if (_isUserOnHomeScreen) {
+            // Cette variable doit être définie ailleurs
+            final data = Map<String, dynamic>.from(event.snapshot.value as Map);
 
-          if (data['isActive'] == true) {
-            final alert = Alert(
-              id: event.snapshot.key ?? '',
-              title: data['title'] ?? 'Alerte',
-              description: data['description'] ?? 'Nouvelle alerte détectée',
-              timestamp: DateTime.fromMillisecondsSinceEpoch(
-                data['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
-              ),
-              type: _getAlertTypeFromString(data['type'] ?? 'info'),
-            );
+            if (data['isActive'] == true) {
+              final alert = Alert(
+                id: event.snapshot.key ?? '',
+                title: data['title'] ?? 'Alerte',
+                description: data['description'] ?? 'Nouvelle alerte détectée',
+                timestamp: DateTime.fromMillisecondsSinceEpoch(
+                  data['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
+                ),
+                type: _getAlertTypeFromString(data['type'] ?? 'info'),
+              );
 
-            if (!_processedAlertIds.contains(alert.id)) {
-              addNotification(alert);
-              _processedAlertIds.add(alert.id);
+              if (!_processedAlertIds.contains(alert.id)) {
+                addNotification(alert);
+                _processedAlertIds.add(alert.id);
 
-              showOverlayNotification((context) {
-                return _buildNotificationCard(context, alert);
-              }, duration: const Duration(seconds: 3));
+                showOverlayNotification((context) {
+                  return _buildNotificationCard(context, alert);
+                }, duration: const Duration(seconds: 3));
+              }
             }
           }
         }
@@ -270,6 +268,22 @@ class NotificationService extends ChangeNotifier {
         debugPrint('Erreur dans onChildChanged: $error');
       },
     );
+  }
+
+  bool _allowShowOverlayNotifications = false;
+
+  void enableOverlayNotifications(bool enable) {
+    _allowShowOverlayNotifications = enable;
+  }
+
+  // Modifiez la méthode qui affiche les notifications
+  void _showOverlayNotificationIfAllowed(Alert alert) {
+    if (_allowShowOverlayNotifications &&
+        FirebaseAuth.instance.currentUser != null) {
+      showOverlayNotification((context) {
+        return _buildNotificationCard(context, alert);
+      }, duration: const Duration(seconds: 3));
+    }
   }
 
   Widget _buildNotificationCard(BuildContext context, Alert alert) {
