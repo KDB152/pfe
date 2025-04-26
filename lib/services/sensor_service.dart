@@ -60,16 +60,37 @@ class SensorService {
 
   // Vérifier les seuils et envoyer des notifications
   void _checkThresholds(SensorData data) {
-    if (data.temperature > 40) {
+    // Alerte de température ≥ 50°C
+    if (data.temperature >= 50) {
       _notificationService.sendThresholdNotification(
         'Alerte Température',
-        'La température dépasse 40°C : ${data.temperature}°C',
+        'La température dépasse 50°C : ${data.temperature}°C',
       );
     }
-    if (data.humidity > 40) {
+
+    // Alerte d'humidité entre 40-60%, 10-20% ou >90%
+    if ((data.humidity >= 40 && data.humidity <= 60) ||
+        (data.humidity >= 10 && data.humidity <= 20) ||
+        data.humidity > 90) {
       _notificationService.sendThresholdNotification(
         'Alerte Humidité',
-        'L\'humidité dépasse 40% : ${data.humidity}%',
+        'L\'humidité est dans une plage critique : ${data.humidity}%',
+      );
+    }
+
+    // Alerte de CO2 ≥ 900
+    if (data.co2 >= 900) {
+      _notificationService.sendThresholdNotification(
+        'Alerte du Gaz',
+        'La valeur du gaz dépasse 900: ${data.co2}',
+      );
+    }
+
+    // Alerte de probabilité d'incendie > 70%
+    if (data.smoke > 70) {
+      _notificationService.sendThresholdNotification(
+        'Alerte Incendie',
+        'La Probabilité d\'incendie est élevée: ${data.smoke}%',
       );
     }
   }
